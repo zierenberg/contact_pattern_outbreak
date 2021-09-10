@@ -30,10 +30,26 @@ Pkg.add.([
 ```
 
 # Prepare
+Go to your directory
 ```
 cd cloned_directory
+```
+
+Download the physical proximity data from the Copenhagen Networks Study
+```
+mkdir ./dat/
+wget https://figshare.com/ndownloader/files/14000795 -O ./dat/bt_symmetric.csv
+```
+
+Create folders for output
+
+```
 mkdir ./out/
 mkdir ./out_mf/
+```
+
+Start julia
+```
 ~/bin/julia-1.6.2/bin/julia
 ```
 
