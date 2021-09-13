@@ -150,3 +150,10 @@ figure_sm_external(h5f)
 figure_sm_overview(h5f)
 figure_sm_dispersion(h5f)
 ```
+
+When done, it is recommended to close the hdf5 files to release the file lock (by default we do not load the full content into ram, but keep files open).
+
+```python
+h5.close_hot()
+```
+
