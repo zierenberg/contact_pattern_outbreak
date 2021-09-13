@@ -9,7 +9,10 @@ Sociopatterns:
 http://www.sociopatterns.org/datasets/co-location-data-for-several-sociopatterns-data-sets/
 
 # Installation
-```
+
+Install required packages in a julia shell
+
+```julia
 import Pkg;
 Pkg.add.([
     "DataStructures",
@@ -31,30 +34,32 @@ Pkg.add.([
 
 # Prepare
 Go to your directory
-```
+
+```bash
 cd cloned_directory
 ```
 
 Download the physical proximity data from the Copenhagen Networks Study
-```
+
+```bash
 mkdir ./dat/
 wget https://figshare.com/ndownloader/files/14000795 -O ./dat/bt_symmetric.csv
 ```
 
 Create folders for output
 
-```
+```bash
 mkdir ./out/
 mkdir ./out_mf/
 ```
 
 Start julia
-```
+```bash
 ~/bin/julia-1.6.2/bin/julia
 ```
 
 # Running the analysis
-```
+```julia
 include("analysis/data_analysis.jl")
 
 # set this to `true` to skip error estimates, as they take most of the time.
@@ -74,7 +79,7 @@ analyse_all(InVS15(), path_out = "./out/", level_of_details=3)
 
 
 # Epidemic spread in mean-field model
-```
+```julia
 include("analysis/data_analysis.jl")
 
 # create the data from mean field model
