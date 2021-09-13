@@ -97,6 +97,51 @@ analyse_effective_R(
 
 # Plotting
 
+Install required packages, new conda enviornment recommended. Some smaller packages are only available via pip
+
+```bash
+conda install numpy scipyt matplotlib seaborn h5py tqdm
+pip install benedict addict palettable
 ```
-h5.recursive_load("/Users/paul/mpi/simulation/disease_spread_contact_structure/_latest/out_lvl3/results_Copenhagen_filtered_15min.h5", dtype=ph.bdict, keepdim=True)
+
+Start an interactive python shell with our `plot_helper`
+
+```bash
+  cd resonance_contact_disease
+  python -i ./plotting/plot_helper.py
+  # or if you prefer ipython
+  ipython ./plotting/plot_helper.py
+```
+
+We have some global settings that affect all panels. Beware, when setting `use_compact_size = True` this may clip axis labels and ticks. They are still part of the pdf, just not in the viewer.
+
+```python
+show_title = True
+show_xlabel = True
+show_ylabel = True
+show_legend = True
+show_legend_in_extra_panel = False
+use_compact_size = False  # this recreates the small panel size of the manuscript
+```
+
+Load the main hdf5 file from the analysis. Then, figures can be created as shown below. They should open automatically, else try `plt.show()` to show them manually or `plt.ion()` to set matplotlib to interactive mode. We provide a helper to save all currently open figures into a folder.
+
+```python
+h5f = h5.recursive_load("./out/results_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True)
+
+figure_1(h5f)
+figure_2(h5f)
+figure_3(h5f)
+figure_4(h5f)
+figure_5(h5f)  # this guy needs the extra files in './out_mf/'
+
+save_all_figures("./figs/", fmt="pdf", dpi=300)
+```
+
+Supplementary Figures may need different files to be loaded. Load the `h5f` as needed.
+
+```python
+figure_sm_external(h5f)
+figure_sm_overview(h5f)
+figure_sm_dispersion(h5f)
 ```
