@@ -1,6 +1,6 @@
 #using Pkg
 #Pkg.add(["DelimitedFiles", "ProgressMeter", "StatsBase", "Roots", "LinearAlgebra", "Printf", "HDF5", "Distributions", "SpecialFunctions", "Parameters"])
-#Pkg.add(https://github.com/JuliaIO/HDF5.jl)
+#Pkg.add(url="https://github.com/JuliaIO/HDF5.jl")
 #
 using HDF5
 using Printf

@@ -43,7 +43,7 @@ import glob
 import argparse
 import inspect
 import logging
-import h5py
+import h5py as h5
 import numpy as np
 import pandas as pd
 import scipy.stats
