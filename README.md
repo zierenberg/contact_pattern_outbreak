@@ -105,7 +105,7 @@ analyse_effective_R(
 Install required packages, new conda enviornment recommended. Some smaller packages are only available via pip
 
 ```bash
-conda install numpy scipyt matplotlib seaborn h5py tqdm
+conda install numpy scipy matplotlib seaborn h5py tqdm
 pip install benedict addict palettable
 ```
 
