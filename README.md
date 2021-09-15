@@ -66,6 +66,7 @@ include("analysis/data_analysis.jl")
 skip_jackknife = false
 
 # main analysis
+# takes around ~6h
 # reduce level of details to be faster but skip some analysis
 analyse_all(Copenhagen(), path_out = "./out/", level_of_details=3)
 
@@ -83,6 +84,7 @@ analyse_all(InVS15(), path_out = "./out/", level_of_details=3)
 include("analysis/data_analysis.jl")
 
 # create the data from mean field model
+# takes around ~18h
 sample_mean_field_for_effective_R(path_out = "./out_mf")
 
 # analyse from measurements
@@ -106,7 +108,7 @@ Install required packages, new conda enviornment recommended. Some smaller packa
 
 ```bash
 conda install numpy scipy matplotlib seaborn h5py tqdm
-pip install benedict addict palettable
+pip install python-benedict addict palettable
 ```
 
 Start an interactive python shell with our `plot_helper`
@@ -115,7 +117,7 @@ Start an interactive python shell with our `plot_helper`
   cd resonance_contact_disease
   python -i ./plotting/plot_helper.py
   # or if you prefer ipython
-  ipython ./plotting/plot_helper.py
+  ipython -i ./plotting/plot_helper.py
 ```
 
 We have some global settings that affect all panels. Beware, when setting `use_compact_size = True` this may clip axis labels and ticks. They are still part of the pdf, just not in the viewer.
