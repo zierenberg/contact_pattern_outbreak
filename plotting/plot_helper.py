@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2021-09-13 22:04:15
+# @Last Modified: 2021-11-04 11:10:58
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -175,9 +175,9 @@ cm = 0.3937
 show_title = True
 show_xlabel = True
 show_ylabel = True
-show_legend = True
-show_legend_in_extra_panel = False
-use_compact_size = False  # this recreates the small panel size of the manuscript
+show_legend = False
+show_legend_in_extra_panel = True
+use_compact_size = True  # this recreates the small panel size of the manuscript
 
 # default marker size
 ms_default = 2
@@ -310,11 +310,119 @@ def figure_sm_dispersion(h5f):
     plot_dispersion_scan_k(h5f, periods="fast")
 
 
+def figure_sm_rssi_duration(how="absolute"):
+    """
+        Controls for different distance and contact duration
+        creates plots for 2d potentially inf. encounters and conditional encounter rate
+        using hardcoded paths
+    """
+
+    # define some helpers with defaul arguments
+    load = functools.partial(h5.recursive_load, dtype=bdict, keepdim=True, skip=["trains"])
+
+    plot_2d = functools.partial(plot_disease_mean_number_of_infectious_encounter_2d,
+        which="data", how=how, control_plot=False)
+
+    h5ref = load("./out/results_Copenhagen_filtered_15min.h5",)
+
+    fig_kws = dict(dpi=300, transparent=True)
+
+    # Contact duration
+    fig, ax1d = plt.subplots(figsize=(8*cm, 5*cm))
+
+    kwargs = dict(label="15min (main)")
+    plot_conditional_rate(h5ref, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite = kwargs)
+    ax = plot_2d(h5ref)
+    ax.set_title("15min (main)")
+    ax.get_figure().savefig(f"./figs/mins/2d_15min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_5min.h5")
+    kwargs = dict(label="5min", lw=0.5)
+    plot_conditional_rate(h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite = kwargs)
+    ax = plot_2d(h5f)
+    ax.set_title("5min")
+    ax.get_figure().savefig(f"./figs/mins/2d_5min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_10min.h5")
+    kwargs = dict(label="10min", lw=0.5)
+    plot_conditional_rate(h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite = kwargs)
+    ax = plot_2d(h5f)
+    ax.set_title("10min")
+    ax.get_figure().savefig(f"./figs/mins/2d_10min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_20min.h5")
+    kwargs = dict(label="20min", lw=0.5)
+    plot_conditional_rate(h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite = kwargs)
+    ax = plot_2d(h5f)
+    ax.set_title("20min")
+    ax.get_figure().savefig(f"./figs/mins/2d_20min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_30min.h5")
+    kwargs = dict(label="30min", lw=0.5)
+    plot_conditional_rate(h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite = kwargs)
+    ax = plot_2d(h5f)
+    ax.set_title("30min")
+    ax.get_figure().savefig(f"./figs/mins/2d_30min_{how}.pdf", **fig_kws)
+
+    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm )
+    fig.axes[0].set_ylim(0, 100)
+    fig.savefig(f"./figs/mins/cer.pdf", **fig_kws)
+
+    # RSSI conditional encounter rate
+    fig, ax = plt.subplots(figsize=(8*cm, 5*cm))
+
+    kwargs = dict(label="-80db (main)")
+    plot_conditional_rate(h5ref, ax=ax, which=["data"], control_plot=True, kwargs_overwrite = kwargs)
+
+    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
+    kwargs = dict(label="-75db")
+    plot_conditional_rate(h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite = kwargs)
+
+
+    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
+    kwargs = dict(label="-95db")
+    plot_conditional_rate(h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite = kwargs)
+
+    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm )
+    fig.axes[0].set_ylim(0, 120)
+    fig.savefig(f"./figs/rssi/cer.pdf", **fig_kws)
+
+    # RSSI 2d plots
+    ax = plot_2d(h5ref)
+    ax.set_title("-80db (main)")
+    ax.get_figure().savefig(f"./figs/rssi/2d_80_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
+    ax = plot_2d(h5f)
+    ax.set_title("-75db")
+    ax.get_figure().savefig(f"./figs/rssi/2d_75_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
+    ax = plot_2d(h5f)
+    ax.set_title("-95db")
+    ax.get_figure().savefig(f"./figs/rssi/2d_95_{how}.pdf", **fig_kws)
+
+
+def figure_sm_rate_and_iei_complete(h5f):
+    """
+        plots for encounter rate and inter-encounter-intervals (fig 1, bottom)
+        showing sampled process along the data
+    """
+    ax = plot_etrain_rate(h5f, sm_generative_processes=True)
+    _set_size(ax, 5.0 * cm, 3.5 * cm )
+    ax.get_figure().savefig(f"./figs/sm_ecr.pdf", **fig_kws)
+
+    ax = plot_dist_inter_encounter_interval(h5f, sm_generative_processes=True)
+    _set_size(ax, 5.0 * cm, 3.5 * cm )
+    ax.get_figure().savefig(f"./figs/sm_iei.pdf", **fig_kws)
+
+
+
 # decorator for lower level plot functions to continue if subplot fails
 def warntry(func):
     def wrapper(*args, **kwargs):
         try:
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
         except Exception as e:
             log.exception(f"{func.__name__}: {e}")
 
@@ -363,9 +471,9 @@ def plot_etrain_rasters(h5f):
     return ax
 
 
-# Fig 1 c
+# Fig 1c
 @warntry
-def plot_etrain_rate(h5f, ax=None):
+def plot_etrain_rate(h5f, ax=None, sm_generative_processes = False):
     if ax is None:
         with plt.rc_context({"xtick.labelsize": 6, "ytick.labelsize": 6}):
             fig, ax = plt.subplots(figsize=(6.5 * cm, 4.5 * cm))
@@ -409,7 +517,7 @@ def plot_etrain_rate(h5f, ax=None):
         label="data",
     )
 
-    # inh poisson
+    # inh poisson, as continuous line. default, main manuscript
     ax.plot(
         r_time,
         r_psn,
@@ -419,6 +527,56 @@ def plot_etrain_rate(h5f, ax=None):
         zorder=0,
         label="inh. Poisson",
     )
+
+    # for the sm, we want a more complete picture and different style.
+    if sm_generative_processes:
+        ax.clear()
+        r_psn_errs = h5f["sample/poisson_inhomogeneous/rate"][3, :] / norm_rate
+        r_wbl_errs = h5f["sample/weibul_renewal_process/rate"][3, :] / norm_rate
+
+        # data
+        ax.plot(r_time, r_full, color=clrs.cond_enc_rate, ls="--", lw=1, label="data",
+            zorder=2)
+
+        # inh_poisson
+        ax.errorbar(
+            x=r_time,
+            y=r_psn,
+            yerr=r_psn_errs,
+            fmt="s",
+            ls="-",
+            markersize=ms_default,
+            color=clrs.medium_psn,
+            ecolor=clrs.medium_psn,
+            mfc="white",
+            alpha=1,
+            # lw=0.5,
+            elinewidth=0.5,
+            capsize=0,
+            zorder=0,
+            label="inh. Poisson process",
+        )
+
+        # weibull renewal
+        ax.errorbar(
+            x=r_time,
+            y=r_wbl,
+            yerr=r_wbl_errs,
+            fmt="o",
+            ls="-",
+            markersize=ms_default,
+            color=clrs.weibull,
+            ecolor=clrs.weibull,
+            alpha=1,
+            # ls="--",
+            # lw=0.5,
+            elinewidth=0.5,
+            capsize=0,
+            zorder=0,
+            label="Weibull renewal process",
+        )
+
+
 
     ax.set_xlim(0, 7)
     ax.set_ylim(0, None)
@@ -469,10 +627,10 @@ def plot_etrain_rate(h5f, ax=None):
 
 # Fig 1d, SM
 @warntry
-def plot_dist_inter_encounter_interval(h5f, ax=None, which="log"):
+def plot_dist_inter_encounter_interval(h5f, ax=None, which="log", sm_generative_processes=False):
     with plt.rc_context({"xtick.labelsize": 6, "ytick.labelsize": 6}):
         if ax is None:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(6.5 * cm, 4.5 * cm))
         else:
             fig = ax.get_figure()
         ax.set_rasterization_zorder(0)
@@ -510,7 +668,8 @@ def plot_dist_inter_encounter_interval(h5f, ax=None, which="log"):
             dat_psn = h5f[
                 "sample/poisson_inhomogeneous/distribution_inter_encounter_intervals_logbin"
             ][:]
-        except:
+        except Exception as e:
+            log.debug(e)
             dat_psn = np.ones(dat.shape) * np.nan
             dat_psn[0, :] = dat[0, :]
             log.warning("Could not load IEI dist for inhom. Poisson")
@@ -543,6 +702,7 @@ def plot_dist_inter_encounter_interval(h5f, ax=None, which="log"):
         # plot
         # ------------------------------------------------------------------------------ #
 
+        # main manuscript
         # data error bars in x and y
         e_step = 1
         ax.errorbar(
@@ -562,6 +722,53 @@ def plot_dist_inter_encounter_interval(h5f, ax=None, which="log"):
         )
 
         ax.plot(iei_wbl, prob_wbl, color=clrs.weibull, ls=(0, (1, 1)), label="Weibull")
+        # ax.plot(iei_psn, prob_psn, color=clrs.medium_psn, ls=(0, (1, 1)), label="Poisson")
+
+        # for the sm, we want a more complete picture and different style.
+        if sm_generative_processes:
+            ax.clear()
+
+            # data
+            ax.plot(iei, prob, color=clrs.cond_enc_rate, ls="--", lw=1,
+                label="data", zorder=2)
+
+            # inh poisson
+            ax.errorbar(
+                x=iei_psn[::e_step],
+                y=prob_psn[::e_step],
+                xerr=errs_iei_psn[::e_step],
+                yerr=errs_prob_psn[::e_step],
+                fmt="s",
+                ls="-",
+                markersize=ms_default,
+                color=clrs.medium_psn,
+                ecolor=clrs.medium_psn,
+                mfc="white",
+                alpha=1,
+                elinewidth=0.5,
+                capsize=0,
+                zorder=0,
+                label="inh. Poisson process",
+            )
+
+            # weibull
+            ax.errorbar(
+                x=iei_wbl[::e_step],
+                y=prob_wbl[::e_step],
+                xerr=errs_iei_wbl[::e_step],
+                yerr=errs_prob_wbl[::e_step],
+                fmt="o",
+                ls="-",
+                markersize=ms_default,
+                color=clrs.weibull,
+                ecolor=clrs.weibull,
+                alpha=1,
+                elinewidth=0.5,
+                capsize=0,
+                zorder=0,
+                label="Weibull renewal process",
+            )
+
 
     if which == "lin" or which == "both":
         dat = h5f["data/encounter_train/distribution_inter_encounter_intervals"][:]
@@ -939,7 +1146,7 @@ def plot_disease_mean_number_of_infectious_encounter_cutplane(
 
 # Fig 2d, Fig 3b, SM
 @warntry
-def plot_conditional_rate(h5f, ax=None, which=["data"], control_plot=False):
+def plot_conditional_rate(h5f, ax=None, which=["data"], control_plot=False, kwargs_overwrite=None):
     if ax is None:
         fig, ax = plt.subplots()
     else:
@@ -968,9 +1175,14 @@ def plot_conditional_rate(h5f, ax=None, which=["data"], control_plot=False):
             except:
                 pass
 
-            kwargs = dict(alpha=1, label=w, zorder=0, color=f"C{wdx}")
+            if kwargs_overwrite is None:
+                kwargs = dict(alpha=1, label=w, zorder=0, color=f"C{wdx}")
+            else:
+                kwargs = kwargs_overwrite
 
-            if w == "data":
+            if kwargs_overwrite is not None:
+                pass
+            elif w == "data":
                 kwargs["zorder"] = 2
                 kwargs["color"] = clrs.cond_enc_rate
                 if control_plot:
@@ -982,7 +1194,9 @@ def plot_conditional_rate(h5f, ax=None, which=["data"], control_plot=False):
                 kwargs["zorder"] = 1
 
             # weighted -> thicker, more saturated
-            if w == "weibul_renewal_process":
+            if kwargs_overwrite is not None:
+                pass
+            elif w == "weibul_renewal_process":
                 kwargs["color"] = _alpha_to_solid_on_bg(clrs.weibull, 0.5)
                 kwargs["lw"] = 0.75
             elif w == "weibul_renewal_process_weighted_trains":
@@ -999,7 +1213,7 @@ def plot_conditional_rate(h5f, ax=None, which=["data"], control_plot=False):
 
             ax.plot(r_time, r_full, **kwargs)
 
-            if w == "data" and not control_plot:
+            if w == "data" and not control_plot and kwargs_overwrite is None:
                 # shaded regions for examples: 2,3 and 6,3
                 idx = np.where((r_time > 6) & (r_time < 9))
                 ax.fill_between(
@@ -1029,8 +1243,9 @@ def plot_conditional_rate(h5f, ax=None, which=["data"], control_plot=False):
     ax.set_ylim(0, 60)
 
     if control_plot:
-        ax.xaxis.set_major_locator(MultipleLocator(4))
+        ax.xaxis.set_major_locator(MultipleLocator(2))
         ax.xaxis.set_minor_locator(MultipleLocator(1))
+        ax.yaxis.set_minor_locator(MultipleLocator(10))
     else:
         ax.xaxis.set_major_locator(MultipleLocator(1))
         ax.xaxis.set_minor_locator(MultipleLocator(0.5))
@@ -1162,17 +1377,17 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
 
     fig.tight_layout()
 
-    if control_plot:
-        ax.tick_params(
-            top=True,
-            bottom=True,
-            left=True,
-            right=True,
-            labeltop=False,
-            labelbottom=False,
-            labelright=False,
-            labelleft=False,
-        )
+    # if control_plot:
+    #     ax.tick_params(
+    #         top=True,
+    #         bottom=True,
+    #         left=True,
+    #         right=True,
+    #         labeltop=False,
+    #         labelbottom=False,
+    #         labelright=False,
+    #         labelleft=False,
+    #     )
         # _set_size(ax, 2.1 * cm, 2.1 * cm)
 
     return ax

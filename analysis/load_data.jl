@@ -27,6 +27,8 @@ timestep(experiment::Copenhagen) = 5*60
 duration(experiment::InVS15)     = 14*24*60*60
 duration(experiment::Copenhagen) = 28*24*60*60
 
+global rssi_threshold = -80
+
 
 # A sketch
 ###############################################################################
@@ -86,7 +88,8 @@ function load_processed_data(
 
     # get contacts and filter out those that are too short
     list_contacts = get_contacts(pairwise_colocation_times, selected_ids, timestep(experiment))
-    filter_out_short_contacts!(list_contacts, 15*60)
+    filter_out_short_contacts!(list_contacts, minimum_duration)
+    @printf("Minimum Duration for Contacts: %.2f minutes\n", minimum_duration / 60)
 
     # calculate encoutner trains and contact activity from list of contacts
     ets = encounter_trains(list_contacts, selected_ids, duration(experiment), timestep(experiment));
@@ -135,7 +138,8 @@ function load_data(experiment::Copenhagen, path; filter_out_incomplete=false)
     #         Fig.2 in [1]
     #         * if rssi < -80 this means that for 5min no single encoutner closer
     #         than 1.5m
-    colocation_times = data[data[:,4].>=-80,:]
+
+    colocation_times = data[data[:,4].>=rssi_threshold,:]
 
     # make dimension match sociopatterns format
     colocation_times = colocation_times[:,1:3]

@@ -38,7 +38,6 @@ function analyse_all(
         path_out = "./out",
         filter_out_incomplete=false,
         ct_range_times = 0:60*60:10*24*60*60,
-        cluster_minimum_separation = 15*60,
         disease_model = DiseaseDefault(),
         seed=1000,
         # 0: essentials, 1: essentials and fast extras, 2: most, 3: everything
@@ -46,6 +45,7 @@ function analyse_all(
         level_of_details = 2,
     )
     lod = level_of_details
+    mkpath(path_out)
     if filter_out_incomplete
         filename = @sprintf("%s/results_%s_filtered_%dmin_filterOutIncomplete.h5", path_out, label(experiment), minimum_duration/60)
     else
@@ -743,8 +743,9 @@ function sample_mean_field_for_effective_R(;
         experiment=Copenhagen(),
         minimum_duration = 15*60,
         path_dat = "./dat",
-        path_out = "./out",
+        path_out = "./out_mf",
     )
+    mkpath(path_out)
 
     function do_it(ets, filename, dsetname)
         # encounter rate
