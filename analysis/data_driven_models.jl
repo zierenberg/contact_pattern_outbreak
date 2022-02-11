@@ -83,8 +83,9 @@ function sample_mean_field_for_effective_R(;
         experiment=Copenhagen(),
         minimum_duration = 15*60,
         path_dat = "./dat",
-        path_out = "./out",
+        path_out = "./out_mf",
     )
+    mkpath(path_out)
 
     function do_it(ets, filename, dsetname)
         # encounter rate

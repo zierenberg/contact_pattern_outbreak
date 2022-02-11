@@ -104,6 +104,7 @@ analyse_effective_R(
 
 # Plotting
 
+Plotting is implemented in python.
 Install required packages, new conda enviornment recommended. Some smaller packages are only available via pip
 
 ```bash
