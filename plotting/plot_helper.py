@@ -250,6 +250,8 @@ def figure_4(h5f):
     plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
     plot_dispersion_scan_k(h5f, periods="slow")
 
+    compare_disease_dist_infectious_encounters_to_psn(h5f, periods="slow")
+
 
 # this needs a different input file than the others
 # todo, paths are still hardcoded
@@ -1712,6 +1714,125 @@ def plot_disease_dist_infectious_encounters(h5f, ax=None, k="k_inf", periods="sl
 
     fig.tight_layout()
     _set_size(ax, 3.3 * cm, 1.7 * cm)
+
+def compare_disease_dist_infectious_encounters_to_psn(h5f, ax=None, periods="slow"):
+    """
+    similar to above, but instead of comparing to randomized, we compare to the
+    train weighted inhom. psn. process
+    """
+
+    k = "k_inf" # we only do this for delta disease model
+    assert periods in ["fast", "slow"]
+    control = None  # onset_train or sth?
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    def local_plot(data, color, zorder=0, **kwargs):
+        num_encounter = data[0, :]
+        p_full = data[1, :]
+        p_jack = data[2, :]
+        p_errs = data[3, :]
+        ax.plot(num_encounter, p_full, color=color, zorder=zorder, **kwargs)
+        ref = _ev(num_encounter, p_full)
+        ax.axvline(
+            ref,
+            0,
+            1,
+            color=_alpha_to_solid_on_bg(color, 0.5),
+            ls=":",
+            zorder=zorder - 10,
+        )
+        return ref
+
+    # original data is stored in /disease
+    # poisson is stored in /sample/psn_inh.../disease
+
+    for path_prefix in ["", "sample/poisson_inhomogeneous_weighted_trains/"]:
+
+        p_todo = []
+        if periods == "slow":
+            p_todo.append("2_3")  # blue
+            p_todo.append("6_3")  # red
+        elif periods == "fast":
+            p_todo.append("1_0.5")  # blue
+            p_todo.append("1.5_0.5")  # red
+
+        c_todo = []
+        c_todo.append(clrs.n_low)
+        c_todo.append(clrs.n_high)
+
+        # iterate over all periods and chosen colors
+        for period, color in zip(p_todo, c_todo):
+
+            path = f"{path_prefix}disease/delta_{period}"
+
+            if control is not None:
+                path += f"/control_random_disease_{control}"
+            path += "/distribution_infectious_encounter"
+
+            try:
+                assert path in h5f.keypaths()
+                data = h5f[path]
+
+                zorder = 2
+                if "_surrogate" in period:
+                    zorder = 0
+
+                kwargs = dict()
+                if path_prefix == "":
+                    color="gray"
+                    # kwargs["ls"] = "-"
+                    # kwargs["alpha"] = 1.0
+                # else:
+                    # kwargs["ls"] = ":"
+                    # kwargs["alpha"] = 0.5
+
+
+                ref = local_plot(data, color, zorder, **kwargs)
+                log.info(f"{k}\t{period}:\t{ref:.2f}")
+            except Exception as e:
+                log.warning(f"Failed to plot {path}")
+                raise(e)
+
+    ax.set_xlim(-5, 150)
+    ax.set_yscale("log")
+    if periods == "slow":
+        ax.set_ylim(1e-6, 1)
+        # ax.set_ylim(1e-3, 1)
+    elif periods == "fast":
+        ax.set_ylim(1e-6, 1)
+
+    _fix_log_ticks(ax.yaxis, every=1)
+    ax.xaxis.set_major_locator(MultipleLocator(50))
+    ax.xaxis.set_minor_locator(MultipleLocator(10))
+
+
+    if k == "k_inf":
+        title = r"$k\to\infty$"
+    else:
+        title = f"$k = {float(k[2:]):.0f}$"
+
+    title += f"    {periods}"
+    if control is not None:
+        title += f" {control}"
+
+    if show_xlabel:
+        ax.set_xlabel(r"Pot. inf. encounters")
+    if show_ylabel:
+        ax.set_ylabel(r"Distribution")
+    if show_title:
+        ax.set_title(title, fontsize=8)
+    # if show_legend:
+    #     ax.legend()
+    # if show_legend_in_extra_panel:
+    #     _legend_into_new_axes(ax)
+
+    fig.tight_layout()
+    _set_size(ax, 3.3 * cm, 1.7 * cm)
+
 
 
 # SM
