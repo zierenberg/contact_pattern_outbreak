@@ -81,7 +81,7 @@ analyse_all(InVS15(), path_out = "./out/", level_of_details=3)
 
 # Epidemic spread in mean-field model
 ```julia
-include("analysis/data_analysis.jl")
+include("analysis/data_driven_models.jl")
 
 # create the data from mean field model
 # takes around ~18h
