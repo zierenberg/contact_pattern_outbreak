@@ -17,31 +17,58 @@ def main():
     filename="/{}/out/branching_process_Copenhagen_filtered_15min.h5".format(base_path)
     f = h5py.File(filename,'r')
 
+
+
+    samples=int(1e4)
+
+    run = False
+    if run:
+        fig, axs = plt.subplots(1,1)
+        ax = axs
+        # Survival as a function of generation
+        survival = np.array(f["data/infectious_3.00_latent_2.00/survival_probability_generation/p=0.132838/N0=1/{:d}".format(samples)])
+        ax.plot(survival, label=r"data with $T_\mathrm{{lat}}=2$", color=clrs.n_low)
+        survival = np.array(f["data/infectious_3.00_latent_6.00/survival_probability_generation/p=0.132838/N0=1/{:d}".format(samples)])
+        ax.plot(survival, label=r"data with $T_\mathrm{{lat}}=6$", color=clrs.n_high)
+        survival = np.array(f["rand/infectious_3.00_latent_2.00/survival_probability_generation/p=0.132838/N0=1/{:d}".format(samples)])
+        ax.plot(survival, label=r"data with $T_\mathrm{{lat}}=2$", color=clrs.n_psn)
+        survival = np.array(f["rand/infectious_3.00_latent_6.00/survival_probability_generation/p=0.132838/N0=1/{:d}".format(samples)])
+        ax.plot(survival, '-.', label=r"data with $T_\mathrm{{lat}}=6$", color=clrs.n_psn)
+
+        ax.set_ylabel(r"survival probability")
+        ax.set_xlabel(r"generation")
+
+        ax.legend(loc='upper right')
+
+        # has to be before set size
+        fig.tight_layout()
+
+        #plt.show()
+        plt.savefig("/{}/results/survival_probability_generation.pdf".format(base_path))
+
+
+    # Survival as a function of contact infection probability
     fig, axs = plt.subplots(1,1)
     ax = axs
-
-    samples=int(1e5)
-    #for name in ["data","rand"]:
-    #    for lat in [2,6]:
-    survival = np.array(f["data/infectious_3.00_latent_2.00/survival_probability/N0=1/{:d}".format(samples)])
-    ax.plot(survival, label=r"data with $T_\mathrm{{lat}}=2$", color=clrs.n_low)
-    survival = np.array(f["data/infectious_3.00_latent_6.00/survival_probability/N0=1/{:d}".format(samples)])
-    ax.plot(survival, label=r"data with $T_\mathrm{{lat}}=6$", color=clrs.n_high)
-    survival = np.array(f["rand/infectious_3.00_latent_2.00/survival_probability/N0=1/{:d}".format(samples)])
-    ax.plot(survival, label=r"data with $T_\mathrm{{lat}}=2$", color=clrs.n_psn)
-    survival = np.array(f["rand/infectious_3.00_latent_6.00/survival_probability/N0=1/{:d}".format(samples)])
-    ax.plot(survival, '-.', label=r"data with $T_\mathrm{{lat}}=6$", color=clrs.n_psn)
+    survival = np.array(f["data/infectious_3.00_latent_2.00/survival_probability_p/N0=1/{:d}".format(samples)])
+    ax.plot(survival[0],survival[1], label=r"data with $T_\mathrm{{lat}}=2$", color=clrs.n_low)
+    survival = np.array(f["data/infectious_3.00_latent_6.00/survival_probability_p/N0=1/{:d}".format(samples)])
+    ax.plot(survival[0],survival[1], label=r"data with $T_\mathrm{{lat}}=6$", color=clrs.n_high)
+    survival = np.array(f["rand/infectious_3.00_latent_2.00/survival_probability_p/N0=1/{:d}".format(samples)])
+    ax.plot(survival[0],survival[1], label=r"data with $T_\mathrm{{lat}}=2$", color=clrs.n_psn)
+    survival = np.array(f["rand/infectious_3.00_latent_6.00/survival_probability_p/N0=1/{:d}".format(samples)])
+    ax.plot(survival[0],survival[1], '-.', label=r"data with $T_\mathrm{{lat}}=6$", color=clrs.n_psn)
 
     ax.set_ylabel(r"survival probability")
-    ax.set_xlabel(r"generation")
+    ax.set_xlabel(r"probability to infect contacts")
 
-    ax.legend(loc='upper right')
+    ax.legend(loc='lower right')
 
     # has to be before set size
     fig.tight_layout()
 
     #plt.show()
-    plt.savefig("/{}/results/survival_probability_generation.pdf".format(base_path))
+    plt.savefig("/{}/results/survival_probability_infection_probability.pdf".format(base_path))
 
 
 if __name__ == "__main__":

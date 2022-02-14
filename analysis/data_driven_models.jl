@@ -11,6 +11,7 @@ include("load_data.jl")
 include("write_files.jl")
 include("disease_spread.jl")
 include("branching_process.jl")
+include("surrogate.jl")
 
 ###############################################################################
 ###############################################################################
@@ -19,6 +20,7 @@ include("branching_process.jl")
 
 """
     experiment=Copenhagen(); minimum_duration = 15*60; path_dat="./dat"; seed_rand=1000;
+    T_lat=2;T_ift=3
 """
 function sample_branching_process(
         #optional
@@ -29,18 +31,33 @@ function sample_branching_process(
         seed_rand = 1000,
         seed_bp   = 1000,
         samples   = Int(1e5),
-        N0=1
+        N_0 = 1,
+        N_max = Int(1e3),
+        T_max = 10,
     )
     filename = @sprintf("%s/branching_process_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
 
     # load encounter trains (ets)
     _, ets_data, _ = load_processed_data(experiment, minimum_duration, path_dat);
-    ets_rand = surrogate_randomize_per_train(ets, seed_rand);
+    ets_rand = surrogate_randomize_per_train(ets_data, seed_rand);
 
     T_ift=3
     T_lat_list=[2,6]
+
+    # get mean infectious contacts for random
+    disease_model = DeltaDiseaseModel(seconds_from_days(T_lat[1]), seconds_from_days(T_ift))
+    dist = distribution_from_samples_infectious_encounter(
+                samples_infectious_encounter(disease_model, ets)
+           )
+    edist = EmpiricalDistribution(dist)
+    mean_number_contacts = expectation(edist)
+    ps = collect(1.0:0.2:5.0) ./mean_number_contacts
+    p_ref = 3.0/mean_number_contacts
+
+    #branching process analysis
     for T_lat in T_lat_list
         for (label,ets) in zip(["data","rand"],[ets_data, ets_rand])
+            println(T_lat, " ", label)
             # data-driven distributions
             disease_model = DeltaDiseaseModel(seconds_from_days(T_lat), seconds_from_days(T_ift))
             dist = distribution_from_samples_infectious_encounter(
@@ -50,23 +67,38 @@ function sample_branching_process(
 
             # determine survival probability as a function of generation for ensemble
             rng = MersenneTwister(seed_bp)
-            T = 10
-            N_max = Int(1e4)
-            samples_survived = zeros(T)
-            N_T = zeros(Int, T)
+            samples_survived = zeros(T_max)
+            N_T = zeros(Int, T_max)
             p = Progress(samples, 1, "BranchingProcess: ", offset=0)
             for i in 1:samples
-                N_T .= 0; N_T[1] = N0
-                branching_process!(rng, N_T, edist, p=0.12)
+                N_T .= 0; N_T[1] = N_0
+                branching_process!(rng, N_T, ProbabilisticOffspringDistribution(edist, p_ref))
                 samples_survived .+= (N_T .> 0)
                 next!(p)
             end
 
             # samples_survived gives survival probability as a function of generation time
             samples_survived ./= samples
-            myh5write(filename, @sprintf("/%s/infectious_%.2f_latent_%.2f/survival_probability/N0=%d/%d", label, T_ift, T_lat, N0, samples), samples_survived)
+            myh5write(filename, @sprintf("/%s/infectious_%.2f_latent_%.2f/survival_probability_generation/p=%f/N0=%d/%d/", label, T_ift, T_lat, p_ref, N_0, samples), samples_survived)
 
-            # do we also want the asymptotic survival probability as a function of N_0?
+            # sample survival as a function of infection probability
+            p_sur = zeros(length(ps))
+            P = Progress(length(ps), 1, "SurvivalProbability: ", offset=0)
+            for (j,p) in enumerate(ps)
+                pdist = ProbabilisticOffspringDistribution(edist, p)
+                step = x->branching_step(rng, x, pdist)
+                for i in 1:samples
+                    sur, T = check_survival(rng, step, N_0, N_max)
+                    p_sur[j] += sur
+                end
+                p_sur[j] /= samples
+                next!(P)
+            end
+            datasetname=@sprintf("/%s/infectious_%.2f_latent_%.2f/survival_probability_p/N0=%d/%d/", label, T_ift, T_lat, N_0, samples)
+            myh5write(filename, datasetname, hcat(ps, p_sur))
+            myh5desc(filename, datasetname,
+                     "asymptotic survival probability estimates as the fraction of samples that do not fall into the absorbing state (branching process stopped if x>x_max=1000), d1: probability to infect contact, d2: survival probability")
+
         end
     end
 
