@@ -19,9 +19,9 @@ def main():
 
 
 
-    samples=int(1e4)
+    samples=int(1e5)
 
-    run = False
+    run = True
     if run:
         fig, axs = plt.subplots(1,1)
         ax = axs

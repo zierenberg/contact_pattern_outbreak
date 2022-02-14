@@ -47,7 +47,7 @@ function sample_branching_process(
     # get mean infectious contacts for random
     disease_model = DeltaDiseaseModel(seconds_from_days(T_lat[1]), seconds_from_days(T_ift))
     dist = distribution_from_samples_infectious_encounter(
-                samples_infectious_encounter(disease_model, ets)
+                samples_infectious_encounter(disease_model, ets_rand)
            )
     edist = EmpiricalDistribution(dist)
     mean_number_contacts = expectation(edist)
@@ -88,7 +88,7 @@ function sample_branching_process(
                 pdist = ProbabilisticOffspringDistribution(edist, p)
                 step = x->branching_step(rng, x, pdist)
                 for i in 1:samples
-                    sur, T = check_survival(rng, step, N_0, N_max)
+                    sur, T = check_survival(step, N_0, N_max)
                     p_sur[j] += sur
                 end
                 p_sur[j] /= samples

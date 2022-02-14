@@ -2,9 +2,10 @@ using Distributions
 using StatsBase
 
 """
-    branching_process(dist, N_0, N_max, T)
-sample branching process with arbitrary offspring distribution for either `T`
-generations or until `N` succeeds `N_max`.
+    branching_process(rng, offspring_dist, N_0, N_max, T)
+
+Sample branching process with arbitrary `offspring distribution` for `T`
+generations starting from `N_0` units at generation 1.
 
 """
 function branching_process(rng, offspring_dist, N_0::Int, T::Int;
@@ -14,13 +15,34 @@ function branching_process(rng, offspring_dist, N_0::Int, T::Int;
     branching_process!(rng, N_T, offspring_dist, p=p)
     return N_T
 end
+"""
+    branching_process(rng, N_T, offspring_dist)
+
+Sample branching process for `length(N_T)` generations starting with initial
+number of units from `N_T[1]` and generating for each unit offsprings from
+`offspring_dist`.
+"""
 function branching_process!(rng, N_T::Vector{Int}, offspring_dist
     )
+    @assert N_T[1] > 0
+    @assert N_T[2:end] .= 0
     for t in 1:length(N_T)-1
         N_T[t+1] = branching_step(rng, N_T[t], offspring_dist)
     end
 end
 
+
+"""
+    branching_step(rng, N, offspring_dist)
+
+Generate for each of the `N` units offsprings according to `offspring distribution`.
+
+# Input
+* rng = random number generator
+* N = integer number
+* offspring_dist = abstract distribution for which rand(rng, offspring_dist)
+generates integer response
+"""
 function branching_step(rng, N::Int, offspring_dist)::Int
     N_ = 0
     for i in 1:N
@@ -31,10 +53,19 @@ end
 
 
 """
+    check_survival(rng, branching_step, x0, xmax)
 
-step needs to be a function of type x->function(rng, ..., x,...)
+Check if branching process with function `branching_step` starting from
+generation 1 with `x0` units survives.
+Survival is here defined as suceeding xmax, which works well if not directly at
+the critical point.
+
+# Input
+* branching_step needs to be a function of type x->function(rng, ..., x, ...)
+step needs to be a function of type x->function(x)
+* currently x0=N_0 and xmax=N_max is tested, this may generalize.
 """
-function check_survival(rng, step::Function, x0, xmax;
+function check_survival(step::Function, x0, xmax;
         T_max = Int(1e5)
     )
     x = x0
@@ -48,18 +79,6 @@ function check_survival(rng, step::Function, x0, xmax;
         end
     end
     return true, T
-end
-
-
-"""
-
-generate offspings for N
-TODO: chekc type stability with @code_warntype; problem is that we only want
-distributions that yield integers...
-"""
-function generate_offspring(rng, dist, p::Number)::Int
-    X = rand(rng, dist)
-    return rand(rng, Binomial(X,p))
 end
 
 
@@ -94,8 +113,20 @@ estimate of expectation value from empirical distribution
 expectation(edist::EmpiricalDistribution) = sum(edist.values .* edist.probabilities)
 
 ##############
+"""
+    ProbabilisticOffspringDistribution
+
+This custom object `pdist` generates offsprings in two steps: First it
+generates potentially infectious encounter from pdist.dist, and second it
+selects infectious encounters with probability pdist.probability
+
+Use as rand(rng, pdist)
+
+# Remark
+pdist.dist can be an `EmpiricalDistribution`.
+"""
 struct ProbabilisticOffspringDistribution{T}
-    dist::EmpiricalDistribution{T}
+    dist::T
     probability::Float64
 end
 function Base.rand(rng::AbstractRNG, pdist::ProbabilisticOffspringDistribution{T}) where T
