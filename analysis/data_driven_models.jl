@@ -45,13 +45,13 @@ function sample_branching_process(
     T_lat_list=[2,6]
 
     # get mean infectious contacts for random
-    disease_model = DeltaDiseaseModel(seconds_from_days(T_lat[1]), seconds_from_days(T_ift))
+    disease_model = DeltaDiseaseModel(seconds_from_days(T_lat_list[1]), seconds_from_days(T_ift))
     dist = distribution_from_samples_infectious_encounter(
                 samples_infectious_encounter(disease_model, ets_rand)
            )
     edist = EmpiricalDistribution(dist)
     mean_number_contacts = expectation(edist)
-    ps = collect(1.0:0.2:5.0) ./mean_number_contacts
+    ps = collect(0.6:0.2:7.0) ./mean_number_contacts
     p_ref = 3.0/mean_number_contacts
 
     #branching process analysis
@@ -88,16 +88,18 @@ function sample_branching_process(
                 pdist = ProbabilisticOffspringDistribution(edist, p)
                 step = x->branching_step(rng, x, pdist)
                 for i in 1:samples
-                    sur, T = check_survival(step, N_0, N_max)
+                    sur, _ = check_survival(step, N_0, N_max)
                     p_sur[j] += sur
                 end
                 p_sur[j] /= samples
                 next!(P)
             end
+            Rs = ps * expectation(edist)
+
             datasetname=@sprintf("/%s/infectious_%.2f_latent_%.2f/survival_probability_p/N0=%d/%d/", label, T_ift, T_lat, N_0, samples)
-            myh5write(filename, datasetname, hcat(ps, p_sur))
+            myh5write(filename, datasetname, hcat(ps, Rs, p_sur))
             myh5desc(filename, datasetname,
-                     "asymptotic survival probability estimates as the fraction of samples that do not fall into the absorbing state (branching process stopped if x>x_max=1000), d1: probability to infect contact, d2: survival probability")
+                     "asymptotic survival probability estimates as the fraction of samples that do not fall into the absorbing state (branching process stopped if x>x_max=1000), d1: probability to infect contact, d2: effective R, d3: survival probability")
 
         end
     end

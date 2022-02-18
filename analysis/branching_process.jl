@@ -25,7 +25,6 @@ number of units from `N_T[1]` and generating for each unit offsprings from
 function branching_process!(rng, N_T::Vector{Int}, offspring_dist
     )
     @assert N_T[1] > 0
-    @assert N_T[2:end] .= 0
     for t in 1:length(N_T)-1
         N_T[t+1] = branching_step(rng, N_T[t], offspring_dist)
     end
