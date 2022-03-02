@@ -320,59 +320,78 @@ def figure_4(h5f=None):
             "./out/results_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
         )
 
-    ax = compare_disease_dist_encounters_generative(h5f, process="psn", periods="slow")
-    ax.set_xlim(-5, 150)
-    ax.set_ylim(1e-4, 1e-1)
-    _set_size(ax, 2.5 * cm, 2 * cm)
-    f = functools.partial(
-        compare_disease_dist_encounters_generative,
-        h5f=h5f,
-        process="psn",
-        periods="slow",
-        set_size=False,
-        annotate=False,
-    )
-    axins = create_inset(
-        plot_func=f,
-        ax=ax,
-        width="40%",
-        height="45%",
-        xlim=(-1.0, 10),
-        ylim=(1.8e-3, 1e-1),
-        borderpad=0.5,
-        inset_loc=1,
-        con_loc1=1,
-        con_loc2=4,
-        mark_zorder=-1,
-    )
-    _remove_ticks([axins.xaxis, axins.yaxis])
+    with plt.rc_context(
+        {
+            "xtick.labelsize": 6,
+            "ytick.labelsize": 6,
+        }
+    ):
+        for period in ["2_3", "6_3"]:
+            ax = compare_disease_dist_encounters_generative(
+                h5f, process="psn", periods=[period]
+            )
+            ax.set_xlim(-5, 150)
+            ax.set_ylim(1e-4, 1e-1)
+            _set_size(ax, 2.5 * cm, 1 * cm)
+            f = functools.partial(
+                compare_disease_dist_encounters_generative,
+                h5f=h5f,
+                process="psn",
+                periods=[period],
+                set_size=False,
+                annotate=False,
+            )
+            axins = create_inset(
+                plot_func=f,
+                ax=ax,
+                width="40%",
+                height="45%",
+                xlim=(-1.0, 10),
+                ylim=(1.4e-3, 1.4e-1),
+                borderpad=0.0,
+                inset_loc=1,
+                con_loc1=1,
+                con_loc2=4,
+                mark_zorder=-1,
+            )
+            _detick([axins.xaxis, axins.yaxis])
+            if period == "2_3":
+                _detick(ax.xaxis, keep_ticks=True)
+                ax.set_xlabel("")
 
-    ax = compare_disease_dist_encounters_generative(h5f, process="wbl", periods="slow")
-    ax.set_xlim(-5, 150)
-    ax.set_ylim(1e-4, 1e-1)
-    _set_size(ax, 2.5 * cm, 2 * cm)
-    f = functools.partial(
-        compare_disease_dist_encounters_generative,
-        h5f=h5f,
-        process="wbl",
-        periods="slow",
-        set_size=False,
-        annotate=False,
-    )
-    axins = create_inset(
-        plot_func=f,
-        ax=ax,
-        width="35%",
-        height="40%",
-        xlim=(-1.0, 10),
-        ylim=(0.8e-2, 1e-1),
-        borderpad=0.5,
-        inset_loc=1,
-        con_loc1=1,
-        con_loc2=3,
-        mark_zorder=-1,
-    )
-    _remove_ticks([axins.xaxis, axins.yaxis])
+            ax = compare_disease_dist_encounters_generative(
+                h5f, process="wbl", periods=[period]
+            )
+            ax.set_xlim(-5, 150)
+            ax.set_ylim(1e-4, 1e-1)
+            _set_size(ax, 2.5 * cm, 1 * cm)
+            f = functools.partial(
+                compare_disease_dist_encounters_generative,
+                h5f=h5f,
+                process="wbl",
+                periods=[period],
+                set_size=False,
+                annotate=False,
+            )
+            axins = create_inset(
+                plot_func=f,
+                ax=ax,
+                width="35%",
+                height="40%",
+                xlim=(-1.0, 10),
+                ylim=(0.8e-2, 1e-1),
+                borderpad=0.25,
+                inset_loc=3,
+                con_loc1=1,
+                con_loc2=3,
+                mark_zorder=-1,
+            )
+            _detick([axins.xaxis, axins.yaxis])
+            if period == "2_3":
+                _detick(ax.xaxis, keep_ticks=True)
+                ax.set_xlabel("")
+
+        plot_conditional_rate()
 
 
 def create_inset(
@@ -1981,7 +2000,7 @@ def compare_disease_dist_encounters_generative(
     h5f,
     ax=None,
     process="psn",
-    periods="slow",
+    periods=["2_3"],
     set_size=True,
     annotate=True,
 ):
@@ -1996,7 +2015,6 @@ def compare_disease_dist_encounters_generative(
 
     """
 
-    assert periods in ["fast", "slow"], "`periods` needs to be 'slow' or 'fast'"
     assert process in ["psn", "wbl"], "`process` needs to be 'psn' or 'wbl'"
     control = None  # onset_train or sth?
 
@@ -2032,20 +2050,12 @@ def compare_disease_dist_encounters_generative(
 
     for path_prefix in ["", path_for_process]:
 
-        p_todo = []
-        if periods == "slow":
-            p_todo.append("2_3")  # blue
-            p_todo.append("6_3")  # red
-        elif periods == "fast":
-            p_todo.append("1_0.5")  # blue
-            p_todo.append("1.5_0.5")  # red
-
-        c_todo = []
-        c_todo.append(clrs.n_low)
-        c_todo.append(clrs.n_high)
-
         # iterate over all periods and chosen colors
-        for period, color in zip(p_todo, c_todo):
+        for period in periods:
+            if period == "2_3" or period == "1_0.5":
+                color = clrs.n_low  # blue
+            elif period == "6_3" or period == "1.5_0.5":
+                color = clrs.n_high  # red
 
             path = f"{path_prefix}disease/delta_{period}"
 
@@ -2082,13 +2092,13 @@ def compare_disease_dist_encounters_generative(
 
     ax.set_xlim(-5, 150)
     ax.set_yscale("log")
-    if periods == "slow":
+    if "2_3" in periods or "6_3" in periods:
         ax.set_ylim(1e-4, 1e-1)
         # ax.set_ylim(1e-3, 1)
-    elif periods == "fast":
+    else:
         ax.set_ylim(1e-6, 1)
 
-    _fix_log_ticks(ax.yaxis, every=1)
+    _fix_log_ticks(ax.yaxis, every=1, hide_label_condition=lambda idx: idx % 2 == 1)
     ax.xaxis.set_major_locator(MultipleLocator(50))
     ax.xaxis.set_minor_locator(MultipleLocator(10))
 
@@ -2097,7 +2107,6 @@ def compare_disease_dist_encounters_generative(
     elif process == "psn":
         title = f"Inh. Poisson"
 
-    title += f"    {periods}"
     if control is not None:
         title += f" {control}"
 
@@ -2679,18 +2688,21 @@ def _legend_into_new_axes(ax):
     ax_leg.legend(h, l, loc="upper left")
 
 
-def _remove_ticks(axis):
+def _detick(axis, keep_labels=False, keep_ticks=False):
     """
     ```
-    _remove_ticks(ax.xaxis)
-    _remove_ticks([ax.xaxis, ax.yaxis])
+    _detick(ax.xaxis)
+    _detick([ax.xaxis, ax.yaxis])
     ```
     """
     if not isinstance(axis, list):
         axis = [axis]
     for a in axis:
-        a.set_ticks_position("none")
-        a.set_ticks([])
+        if not keep_labels and not keep_ticks:
+            a.set_ticks_position("none")
+            a.set_ticks([])
+        elif not keep_labels and keep_ticks:
+            a.set_ticklabels([])
 
 
 def _set_size(ax, w, h):
