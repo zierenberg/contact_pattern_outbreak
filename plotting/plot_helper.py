@@ -51,6 +51,7 @@ import scipy.stats
 from scipy.special import gamma
 from scipy.optimize import curve_fit
 from itertools import product
+from sklearn.metrics import average_precision_score
 from tqdm import tqdm
 
 
@@ -176,7 +177,7 @@ cm = 0.3937
 show_title = True
 show_xlabel = True
 show_ylabel = True
-show_legend = True
+show_legend = False
 show_legend_in_extra_panel = False
 use_compact_size = True  # this recreates the small panel size of the manuscript
 
@@ -233,6 +234,18 @@ def figure_2(h5f=None):
     )
     ax = plot_survival_probability(h5f)
     _set_size(ax, 5.5 * cm, 3.5 * cm)
+
+    # branching and mean field use different files
+    # this one loads hardcoded paths
+    ax = plot_spreading_rate()
+
+    r_h5f = h5.recursive_load(
+        "./out_mf/mean_field_samples_Copenhagen_filtered_15min.h5",
+        dtype=bdict,
+        keepdim=True,
+    )
+    ax = plot_r(r_h5f)
+    _set_size(ax, 5.0 * cm, 3.5 * cm)
 
 
 def plot_survival_probability(h5f, ax=None):
@@ -320,59 +333,87 @@ def figure_4(h5f=None):
             "./out/results_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
         )
 
-    ax = compare_disease_dist_encounters_generative(h5f, process="psn", periods="slow")
-    ax.set_xlim(-5, 150)
-    ax.set_ylim(1e-4, 1e-1)
-    _set_size(ax, 2.5 * cm, 2 * cm)
-    f = functools.partial(
-        compare_disease_dist_encounters_generative,
-        h5f=h5f,
-        process="psn",
-        periods="slow",
-        set_size=False,
-        annotate=False,
-    )
-    axins = create_inset(
-        plot_func=f,
-        ax=ax,
-        width="40%",
-        height="45%",
-        xlim=(-1.0, 10),
-        ylim=(1.8e-3, 1e-1),
-        borderpad=0.5,
-        inset_loc=1,
-        con_loc1=1,
-        con_loc2=4,
-        mark_zorder=-1,
-    )
-    _remove_ticks([axins.xaxis, axins.yaxis])
+    with plt.rc_context(
+        {
+            "xtick.labelsize": 6,
+            "ytick.labelsize": 6,
+        }
+    ):
+        for period in ["2_3", "6_3"]:
+            ax = compare_disease_dist_encounters_generative(
+                h5f, process="psn", periods=[period]
+            )
+            ax.set_xlim(-5, 150)
+            ax.set_ylim(1e-4, 1e-1)
+            _set_size(ax, 2.5 * cm, 1 * cm)
+            f = functools.partial(
+                compare_disease_dist_encounters_generative,
+                h5f=h5f,
+                process="psn",
+                periods=[period],
+                set_size=False,
+                annotate=False,
+            )
+            axins = create_inset(
+                plot_func=f,
+                ax=ax,
+                width="40%",
+                height="45%",
+                xlim=(-1.0, 10),
+                ylim=(1.4e-3, 1.4e-1),
+                borderpad=0.0,
+                inset_loc=1,
+                con_loc1=1,
+                con_loc2=4,
+                mark_zorder=-1,
+            )
+            _detick([axins.xaxis, axins.yaxis])
+            if period == "2_3":
+                _detick(ax.xaxis, keep_ticks=True)
+                ax.set_xlabel("")
 
-    ax = compare_disease_dist_encounters_generative(h5f, process="wbl", periods="slow")
-    ax.set_xlim(-5, 150)
-    ax.set_ylim(1e-4, 1e-1)
-    _set_size(ax, 2.5 * cm, 2 * cm)
-    f = functools.partial(
-        compare_disease_dist_encounters_generative,
-        h5f=h5f,
-        process="wbl",
-        periods="slow",
-        set_size=False,
-        annotate=False,
-    )
-    axins = create_inset(
-        plot_func=f,
-        ax=ax,
-        width="35%",
-        height="40%",
-        xlim=(-1.0, 10),
-        ylim=(0.8e-2, 1e-1),
-        borderpad=0.5,
-        inset_loc=1,
-        con_loc1=1,
-        con_loc2=3,
-        mark_zorder=-1,
-    )
-    _remove_ticks([axins.xaxis, axins.yaxis])
+            ax = compare_disease_dist_encounters_generative(
+                h5f, process="wbl", periods=[period]
+            )
+            ax.set_xlim(-5, 150)
+            ax.set_ylim(1e-4, 1e-1)
+            _set_size(ax, 2.5 * cm, 1 * cm)
+            f = functools.partial(
+                compare_disease_dist_encounters_generative,
+                h5f=h5f,
+                process="wbl",
+                periods=[period],
+                set_size=False,
+                annotate=False,
+            )
+            axins = create_inset(
+                plot_func=f,
+                ax=ax,
+                width="35%",
+                height="40%",
+                xlim=(-1.0, 10),
+                ylim=(0.8e-2, 1e-1),
+                borderpad=0.25,
+                inset_loc=3,
+                con_loc1=1,
+                con_loc2=3,
+                mark_zorder=-1,
+            )
+            _detick([axins.xaxis, axins.yaxis])
+            if period == "2_3":
+                _detick(ax.xaxis, keep_ticks=True)
+                ax.set_xlabel("")
+
+        ax = plot_conditional_rate(
+            h5f, which=["data", "poisson_inhomogeneous_weighted_trains"],
+            control_plot=True
+        )
+        _set_size(ax, 2.8 * cm, 1.8 * cm)
+        ax = plot_conditional_rate(
+            h5f, which=["data", "weibul_renewal_process_weighted_trains"],
+            control_plot=True
+        )
+        _set_size(ax, 2.8 * cm, 1.8 * cm)
 
 
 def create_inset(
@@ -1399,6 +1440,19 @@ def plot_disease_mean_number_of_infectious_encounter_cutplane(
 def plot_conditional_rate(
     h5f, ax=None, which=["data"], control_plot=False, kwargs_overwrite=None
 ):
+    """
+    plot the conditional encounter rate from data or as obtained for generative processes
+
+    # Parameters
+    which : list of str
+        e.g. `["data", "poisson_inhomogeneous", "poisson_inhomogeneous_weighted_trains"]`
+        or `["data", "weibul_renewal_process", "weibul_renewal_process_weighted_trains"]`
+    control_plot: bool,
+        settings this to `True` disables the shaded area highlighting the areas of 3days infectioustness after tlat=2 and tlat=4, and sets different xlabels
+    kwargs_overwrite: dict
+        passed to the plotting for lines
+
+    """
     if ax is None:
         fig, ax = plt.subplots()
     else:
@@ -1414,7 +1468,7 @@ def plot_conditional_rate(
     # reuse for inset
     def local_plot(ax):
         for wdx, w in enumerate(which):
-            log.info(w)
+            log.info(f"conditional encounter rate for {w}")
             if "data" in w:
                 data = h5f[f"{w}/encounter_train/conditional_encounter_rate"]
             else:
@@ -1453,7 +1507,7 @@ def plot_conditional_rate(
                 kwargs["lw"] = 0.75
             elif w == "weibul_renewal_process_weighted_trains":
                 kwargs["color"] = clrs.weibull
-                kwargs["lw"] = 2
+                kwargs["lw"] = 1
 
             elif w == "poisson_inhomogeneous":
                 kwargs["color"] = _alpha_to_solid_on_bg(clrs.medium_psn, 0.4)
@@ -1461,7 +1515,7 @@ def plot_conditional_rate(
                 kwargs["zorder"] = 4
             elif w == "poisson_inhomogeneous_weighted_trains":
                 kwargs["color"] = clrs.medium_psn
-                kwargs["lw"] = 2
+                kwargs["lw"] = 1
 
             ax.plot(r_time, r_full, **kwargs)
 
@@ -1981,7 +2035,7 @@ def compare_disease_dist_encounters_generative(
     h5f,
     ax=None,
     process="psn",
-    periods="slow",
+    periods=["2_3"],
     set_size=True,
     annotate=True,
 ):
@@ -1996,7 +2050,6 @@ def compare_disease_dist_encounters_generative(
 
     """
 
-    assert periods in ["fast", "slow"], "`periods` needs to be 'slow' or 'fast'"
     assert process in ["psn", "wbl"], "`process` needs to be 'psn' or 'wbl'"
     control = None  # onset_train or sth?
 
@@ -2032,20 +2085,12 @@ def compare_disease_dist_encounters_generative(
 
     for path_prefix in ["", path_for_process]:
 
-        p_todo = []
-        if periods == "slow":
-            p_todo.append("2_3")  # blue
-            p_todo.append("6_3")  # red
-        elif periods == "fast":
-            p_todo.append("1_0.5")  # blue
-            p_todo.append("1.5_0.5")  # red
-
-        c_todo = []
-        c_todo.append(clrs.n_low)
-        c_todo.append(clrs.n_high)
-
         # iterate over all periods and chosen colors
-        for period, color in zip(p_todo, c_todo):
+        for period in periods:
+            if period == "2_3" or period == "1_0.5":
+                color = clrs.n_low  # blue
+            elif period == "6_3" or period == "1.5_0.5":
+                color = clrs.n_high  # red
 
             path = f"{path_prefix}disease/delta_{period}"
 
@@ -2082,13 +2127,13 @@ def compare_disease_dist_encounters_generative(
 
     ax.set_xlim(-5, 150)
     ax.set_yscale("log")
-    if periods == "slow":
+    if "2_3" in periods or "6_3" in periods:
         ax.set_ylim(1e-4, 1e-1)
         # ax.set_ylim(1e-3, 1)
-    elif periods == "fast":
+    else:
         ax.set_ylim(1e-6, 1)
 
-    _fix_log_ticks(ax.yaxis, every=1)
+    _fix_log_ticks(ax.yaxis, every=1, hide_label_condition=lambda idx: idx % 2 == 1)
     ax.xaxis.set_major_locator(MultipleLocator(50))
     ax.xaxis.set_minor_locator(MultipleLocator(10))
 
@@ -2097,7 +2142,6 @@ def compare_disease_dist_encounters_generative(
     elif process == "psn":
         title = f"Inh. Poisson"
 
-    title += f"    {periods}"
     if control is not None:
         title += f" {control}"
 
@@ -2337,7 +2381,12 @@ def plot_controls_means_infectious_encounters(
 # Fig 5
 # needs different h5f, not part of main file yet. usually in 'out_mf'
 @warntry
-def plot_r(h5f, which=["latent_1.00", "latent_2.00", "latent_6.00"]):
+def plot_r(
+    h5f,
+    which=["latent_1.00", "latent_2.00", "latent_6.00"],
+    average_over_rep=False,
+    apply_formatting=True,
+):
     fig, ax = plt.subplots()
 
     def plot_cases(cases, color, **kwargs):
@@ -2348,8 +2397,14 @@ def plot_r(h5f, which=["latent_1.00", "latent_2.00", "latent_6.00"]):
         for idx, key in enumerate(cases.keys()):
             y_all[:, idx] = cases[key][1, :]
         y_all[y_all == 0] = np.nan
-        y_mean = np.nanmean(y_all, axis=-1)
-        y_err = np.nanstd(y_all, axis=-1) / np.sqrt(num_rep)
+
+        if not average_over_rep:
+            selected_rep = 2
+            y_mean = y_all[:, selected_rep]
+            y_err = np.ones(len(y_mean)) * np.nan
+        else:
+            y_mean = np.nanmean(y_all, axis=-1)
+            y_err = np.nanstd(y_all, axis=-1) / np.sqrt(num_rep)
 
         ax.plot(x, y_mean, color=color, **kwargs)
 
@@ -2367,15 +2422,16 @@ def plot_r(h5f, which=["latent_1.00", "latent_2.00", "latent_6.00"]):
         plot_cases(surr, color=_alpha_to_solid_on_bg(base_color, 0.3), label=f"surr {w}")
         plot_cases(real, color=base_color, label=f"real {w}")
 
-    ax.axhline(1e4, 0, 1, color="gray", ls="--")
-    ax.set_ylim(1, 1.1e6)
-    ax.set_xlim(0, 14.75)
-    ax.xaxis.set_major_locator(MultipleLocator(4))
-    ax.xaxis.set_minor_locator(MultipleLocator(1))
-    # for label in ax.xaxis.get_ticklabels()[::2]:
-    #     label.set_visible(False)
-    ax.set_yscale("log")
-    _fix_log_ticks(ax.yaxis, hide_label_condition=lambda idx: idx % 2 == 1)
+    if apply_formatting:
+        # ax.axhline(1e4, 0, 1, color="gray", ls="--")
+        # ax.set_ylim(1, 1.1e6)
+        # ax.set_xlim(0, 14.75)
+        ax.xaxis.set_major_locator(MultipleLocator(4))
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        # for label in ax.xaxis.get_ticklabels()[::2]:
+        #     label.set_visible(False)
+        ax.set_yscale("log")
+        _fix_log_ticks(ax.yaxis, hide_label_condition=lambda idx: idx % 2 == 1)
 
     if show_ylabel:
         ax.set_ylabel("Daily new cases")
@@ -2386,8 +2442,99 @@ def plot_r(h5f, which=["latent_1.00", "latent_2.00", "latent_6.00"]):
     if show_legend_in_extra_panel:
         _legend_into_new_axes(ax)
 
+    if apply_formatting:
+        fig.tight_layout()
+        _set_size(ax, 3.0 * cm, 2.3 * cm)
+
+    return ax
+
+
+# essentially, this is a carbon copy of `plot_r4`
+def plot_spreading_rate():
+    fig, ax = plt.subplots()
+
+    rand = np.loadtxt(
+        "./out_mf/analysis_mean-field_measurements_randomized_per_train.dat",
+        unpack=True,
+    )
+    data = np.loadtxt(
+        "./out_mf/analysis_mean-field_measurements.dat",
+        unpack=True,
+    )
+
+    ax.errorbar(
+        rand[0, :],
+        rand[1, :],
+        yerr=rand[2, :],
+        label="rand",
+        color=clrs.disease_psn_norm,
+        fmt="o",
+        markersize=ms_default,
+        alpha=1,
+        elinewidth=0.5,
+        capsize=1,
+        clip_on=False,
+    )
+    ax.errorbar(
+        data[0, :],
+        data[1, :],
+        yerr=data[2, :],
+        label="data",
+        color=clrs.cond_enc_rate,
+        fmt="o",
+        markersize=ms_default,
+        alpha=1,
+        elinewidth=0.5,
+        capsize=1,
+        clip_on=False,
+    )
+
+    # shaded regions
+    idx = np.where((rand[0, :] >= 1) & (rand[0, :] <= 4))[0]
+    ax.fill_between(
+        rand[0, idx],
+        y1=rand[1, idx],
+        y2=data[1, idx],
+        color="#49737a",
+        alpha=0.4,
+        lw=0,
+        zorder=1,
+    )
+
+    idx = np.where((rand[0, :] >= 4) & (rand[0, :] <= 7))[0]
+    ax.fill_between(
+        rand[0, idx],
+        y1=rand[1, idx],
+        y2=data[1, idx],
+        color="#faad7c",
+        alpha=0.4,
+        lw=0,
+        zorder=1,
+    )
+
+    # ax.legend()
+    ax.set_yscale("log")
+    ax.set_ylim(1e-6, 1.5e-5)
+    _fix_log_ticks(ax.yaxis, every=1)
+    ax.set_xlim(-0.2, 8)
+    ax.xaxis.set_major_locator(MultipleLocator(2))
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    # ax.yaxis.set_major_locator(MultipleLocator(2))
+    # ax.yaxis.set_minor_locator(MultipleLocator(1))
+
+    sns.despine(ax=ax, trim=True)
+
+    if show_ylabel:
+        ax.set_ylabel(r"Spreading rate $\lambda$")
+    if show_xlabel:
+        ax.set_xlabel("Latent period")
+    if show_legend:
+        ax.legend(loc="lower left")
+    if show_legend_in_extra_panel:
+        _legend_into_new_axes(ax)
+
     fig.tight_layout()
-    _set_size(ax, 3.0 * cm, 2.3 * cm)
+    _set_size(ax, 5.0 * cm, 2.8 * cm)
 
     return ax
 
@@ -2679,18 +2826,21 @@ def _legend_into_new_axes(ax):
     ax_leg.legend(h, l, loc="upper left")
 
 
-def _remove_ticks(axis):
+def _detick(axis, keep_labels=False, keep_ticks=False):
     """
     ```
-    _remove_ticks(ax.xaxis)
-    _remove_ticks([ax.xaxis, ax.yaxis])
+    _detick(ax.xaxis)
+    _detick([ax.xaxis, ax.yaxis])
     ```
     """
     if not isinstance(axis, list):
         axis = [axis]
     for a in axis:
-        a.set_ticks_position("none")
-        a.set_ticks([])
+        if not keep_labels and not keep_ticks:
+            a.set_ticks_position("none")
+            a.set_ticks([])
+        elif not keep_labels and keep_ticks:
+            a.set_ticklabels([])
 
 
 def _set_size(ax, w, h):
