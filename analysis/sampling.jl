@@ -54,18 +54,11 @@ function spread_mean_field(
     time_last_measurement = measurement_times[end]
     time = -Inf
     sum_offsprings = 0
+    sum_avg_Tgen = 0
     sum_samples = 0
     while time < time_last_measurement
         # get next infection time (sorted array)
         time = pop!(infections)
-
-        # measure the infection without reporting delay but only if still in range
-        if time > time_last_measurement
-            if verbose
-                println("abort because recording times suceeed the recording interval")
-            end
-            break
-        end
         push!(measured_new_infections, time)
 
         # check if the number of infections that accumulate at this time exceed limit
@@ -87,17 +80,20 @@ function spread_mean_field(
         # and add each contact within infectious interval with probability to the
         # list of infections (count num_offsprings for estimate of R0)
         num_offsprings = 0
+        avg_Tgen = 0
         for dt in dt_potential_secondary_infections
             if rand(rng) < probability_infection
                 push!(infections, time + dt)
                 num_offsprings += 1
+                avg_Tgen += dt
             end
         end
+        sum_avg_Tgen += avg_dt
 	    sum_offsprings += num_offsprings
 	    sum_samples += 1
     end
 
-    return measured_new_infections, sum_offsprings, sum_samples
+    return measured_new_infections, sum_avg_Tgen, sum_offsprings, sum_samples
 end
 
 

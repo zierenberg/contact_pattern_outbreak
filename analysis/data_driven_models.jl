@@ -175,10 +175,11 @@ function sample_mean_field(;
                 rng = MersenneTwister(seed)
                 #println("...", seed)
                 times_initial_infections = -1 .* rand(rng, I0) .* seconds_from_days(latent+infectious)
-                measurement, sum_offsprings, sum_samples = spread_mean_field(disease_model, cond_encounter_rate, probability_infection, seconds_from_days.(0:1:120.), max_cases=max_cases, seed=seed, initial_infection_times=times_initial_infections)
+                measurement, sum_avg_Tgen, sum_offsprings, sum_samples  = spread_mean_field(disease_model, cond_encounter_rate, probability_infection, seconds_from_days.(0:1:120.), max_cases=max_cases, seed=seed, initial_infection_times=times_initial_infections)
 
                 myh5write(filename, @sprintf("/%s/cases/latent_%.2f/%d", dsetname, latent, seed), hcat(measurement.edges[1][1:end-1], measurement.weights))
                 myh5write(filename, @sprintf("/%s/R0/latent_%.2f/%d", dsetname, latent, seed), [sum_offsprings/sum_samples, sum_samples])
+                myh5write(filename, @sprintf("/%s/avg_Tgen/latent_%.2f/%d", dsetname, latent, seed), [sum_avg_Tgen/sum_offsprings, sum_offsprings])
             end
         end
     end
