@@ -226,86 +226,14 @@ def figure_2(h5f=None):
     ax.get_figure().tight_layout()
     ax.set_ylim(1e-4, 1e-1)
     ax.set_xlim(-5, 130)
-    _set_size(ax, 5.5 * cm, 3.5 * cm)
+    _set_size(ax, 5.2 * cm, 2.1 * cm)
 
     # different h5f
     h5f = h5.recursive_load(
         "./out/branching_process_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
     )
     ax = plot_survival_probability(h5f)
-    _set_size(ax, 5.5 * cm, 3.5 * cm)
-
-    # branching and mean field use different files
-    # this one loads hardcoded paths
-    ax = plot_spreading_rate()
-
-    r_h5f = h5.recursive_load(
-        "./out_mf/mean_field_samples_Copenhagen_filtered_15min.h5",
-        dtype=bdict,
-        keepdim=True,
-    )
-    ax = plot_r(r_h5f)
-    _set_size(ax, 5.0 * cm, 3.5 * cm)
-
-
-def plot_survival_probability(h5f, ax=None):
-    """
-    needs a different h5f than most plot functions:
-    the branchin process one, by default `branching_process_Copenhagen_filtered_15min`
-    """
-
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-
-    data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
-    data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
-    rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
-    rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
-
-    for path in [data_2, data_6, rand_2, rand_6]:
-        if "rand" in path:
-            color = clrs.n_psn
-            label = "randomized"
-        elif "latent_2.0" in path:
-            color = clrs.n_high
-            label = "data"
-        elif "latent_6.0" in path:
-            color = clrs.n_low
-            label = "data"
-        lat = re.search("latent_(\d+)", path, re.IGNORECASE).group(1)
-        label += f" Tlat={lat}"
-
-        data = h5f[path]
-        x_prob = data[0, :]
-        x_repr = data[1, :]
-        y_surv = data[2, :]
-
-        ax.plot(x_repr, y_surv, color=color, label=label)
-
-    ax.set_xlim(0, 8)
-    ax.set_ylim(0, 1)
-    ax.yaxis.set_major_locator(MultipleLocator(0.5))
-    ax.yaxis.set_minor_locator(MultipleLocator(0.1))
-    ax.xaxis.set_major_locator(MultipleLocator(2))
-    ax.xaxis.set_minor_locator(MultipleLocator(1))
-
-    if show_xlabel:
-        ax.set_xlabel(r"Reproduction number $R_0$")
-    if show_ylabel:
-        ax.set_ylabel("Survival probability")
-    # if show_title:
-    # ax.set_title(f"{periods}", fontsize=8)
-    if show_legend:
-        ax.legend()
-    if show_legend_in_extra_panel:
-        _legend_into_new_axes(ax)
-
-    fig.tight_layout()
-    # _set_size(ax, 5.5*cm, 3.5*cm)
-
-    return ax
+    _set_size(ax, 5.2 * cm, 2.1 * cm)
 
 
 def figure_3(h5f=None):
@@ -324,7 +252,20 @@ def figure_3(h5f=None):
     plot_disease_mean_number_of_infectious_encounter_2d(
         h5f, which="data", how="relative", control_plot=False
     )
-    del h5f
+
+    # daily new cases
+    r_h5f = h5.recursive_load(
+        "./out_mf/mean_field_samples_Copenhagen_filtered_15min.h5",
+        dtype=bdict,
+        keepdim=True,
+    )
+    ax = plot_r(r_h5f)
+    _set_size(ax, 3.3 * cm, 2.5 * cm)
+
+    # branching and mean field use different files
+    # this one loads hardcoded paths
+    ax = plot_spreading_rate()
+    _set_size(ax, 3.3 * cm, 2.5 * cm)
 
 
 def figure_4(h5f=None):
@@ -405,13 +346,15 @@ def figure_4(h5f=None):
                 ax.set_xlabel("")
 
         ax = plot_conditional_rate(
-            h5f, which=["data", "poisson_inhomogeneous_weighted_trains"],
-            control_plot=True
+            h5f,
+            which=["data", "poisson_inhomogeneous_weighted_trains"],
+            control_plot=True,
         )
         _set_size(ax, 2.8 * cm, 1.8 * cm)
         ax = plot_conditional_rate(
-            h5f, which=["data", "weibul_renewal_process_weighted_trains"],
-            control_plot=True
+            h5f,
+            which=["data", "weibul_renewal_process_weighted_trains"],
+            control_plot=True,
         )
         _set_size(ax, 2.8 * cm, 1.8 * cm)
 
@@ -1700,6 +1643,72 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
     return ax
 
 
+# new Fig 2
+def plot_survival_probability(h5f, ax=None, apply_formatting=True):
+    """
+    needs a different h5f than most plot functions:
+    the branchin process one, by default `branching_process_Copenhagen_filtered_15min`
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
+    data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
+    rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
+    rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
+
+    for path in [data_2, data_6, rand_2, rand_6]:
+        if "rand" in path:
+            color = clrs.n_psn
+            label = "randomized"
+            if "_2" in path:
+                color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
+        elif "latent_2.0" in path:
+            color = clrs.n_low
+            label = "data"
+        elif "latent_6.0" in path:
+            color = clrs.n_high
+            label = "data"
+        lat = re.search("latent_(\d+)", path, re.IGNORECASE).group(1)
+        label += f" Tlat={lat}"
+
+        data = h5f[path]
+        x_prob = data[0, :]
+        x_repr = data[1, :]
+        y_surv = data[2, :]
+
+        ax.plot(x_repr, y_surv, color=color, label=label, clip_on=False)
+
+    if apply_formatting:
+        ax.set_xlim(0, 6)
+        ax.set_ylim(0, 1)
+        ax.yaxis.set_major_locator(MultipleLocator(0.5))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.1))
+        ax.xaxis.set_major_locator(MultipleLocator(2))
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+
+        sns.despine(ax=ax, trim=True, offset=3)
+
+        if show_xlabel:
+            ax.set_xlabel(r"Reproduction number $R_0$")
+        if show_ylabel:
+            ax.set_ylabel("Survival probability")
+        # if show_title:
+        # ax.set_title(f"{periods}", fontsize=8)
+        if show_legend:
+            ax.legend()
+        if show_legend_in_extra_panel:
+            _legend_into_new_axes(ax)
+
+        fig.tight_layout()
+        # _set_size(ax, 5.5*cm, 3.5*cm)
+
+    return ax
+
+
 # Fig 4b
 @warntry
 def plot_gamma_distribution(ax=None):
@@ -1982,6 +1991,8 @@ def plot_disease_dist_infectious_encounters(
             zorder = 0
             if "_surrogate" in period:
                 zorder = 2
+                if "2_" in period:
+                    color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
 
             ref = local_plot(data, color, zorder, label=period)
             log.info(f"{k}\t{period}:\t{ref:.2f}")
@@ -2384,7 +2395,7 @@ def plot_controls_means_infectious_encounters(
 def plot_r(
     h5f,
     which=["latent_1.00", "latent_2.00", "latent_6.00"],
-    average_over_rep=False,
+    average_over_rep=True,
     apply_formatting=True,
 ):
     fig, ax = plt.subplots()
@@ -2399,7 +2410,7 @@ def plot_r(
         y_all[y_all == 0] = np.nan
 
         if not average_over_rep:
-            selected_rep = 2
+            selected_rep = 3
             y_mean = y_all[:, selected_rep]
             y_err = np.ones(len(y_mean)) * np.nan
         else:
@@ -2450,7 +2461,7 @@ def plot_r(
 
 
 # essentially, this is a carbon copy of `plot_r4`
-def plot_spreading_rate():
+def plot_spreading_rate(h5f):
     fig, ax = plt.subplots()
 
     rand = np.loadtxt(
@@ -2461,10 +2472,46 @@ def plot_spreading_rate():
         "./out_mf/analysis_mean-field_measurements.dat",
         unpack=True,
     )
+    # time_x = rand[0, :]
+    time_x = data[0, :]
+    data_y = data[1, :]
+    rand_y = rand[1, :]
+
+    # convert to 1/days
+    rand_y[:] *= 60 * 60 * 24
+    data_y[:] *= 60 * 60 * 24
+
+    # Analytic solution
+    # Johannes derived a closed formula for R(lambda, t_lat) but its not
+    # possible to solve for lambda(R, t_lat) so we do it numerically.
+    from scipy.optimize import minimize
+
+    t_ift = 3
+
+    def func(lam):
+        return lam * t_ift * np.exp(lam * t_lat) / (1.0 - np.exp(-lam * t_ift))
+
+    def delta(lam, R):
+        yt = func(lam)
+        return (yt - R) ** 2
+
+    # We have an estimate of R from our measured eift * pift: 25 * 0.12 ~= 3
+    # as we do in `plot_disease_mean_number_of_infectious_encounter_cutplane`
+    target_R = 2.9483780
+    first_guess = 0.5
+    lam_res = np.ones(len(time_x)) * np.nan
+    for idx, t_lat in enumerate(time_x):
+        res = minimize(
+            delta, first_guess, args=(target_R), method="Nelder-Mead", tol=1e-6
+        )
+        lam_res[idx] = res.x[0]
+
+
+    ax.plot(time_x, lam_res, lw=1, label="_analytic_solution", color=clrs.disease_psn_norm)
 
     ax.errorbar(
-        rand[0, :],
-        rand[1, :],
+        time_x[:],
+        rand_y[:],
         yerr=rand[2, :],
         label="rand",
         color=clrs.disease_psn_norm,
@@ -2476,8 +2523,8 @@ def plot_spreading_rate():
         clip_on=False,
     )
     ax.errorbar(
-        data[0, :],
-        data[1, :],
+        time_x[:],
+        data_y[:],
         yerr=data[2, :],
         label="data",
         color=clrs.cond_enc_rate,
@@ -2490,23 +2537,61 @@ def plot_spreading_rate():
     )
 
     # shaded regions
-    idx = np.where((rand[0, :] >= 1) & (rand[0, :] <= 4))[0]
+    # for the crossings of colors that do not fall on sampled data points, we interpolate
+    # and manually ad the points
+    ins_x = 0.82
+    ins_y = 0.5124
+    idx = np.argwhere(time_x[:] > ins_x)[0][0]
+    time_x = np.insert(time_x, idx, ins_x)
+    data_y = np.insert(data_y, idx, ins_y)
+    rand_y = np.insert(rand_y, idx, ins_y)
+
+    idx = np.where((time_x[:] >= 0) & (time_x[:] <= ins_x))[0]
     ax.fill_between(
-        rand[0, idx],
-        y1=rand[1, idx],
-        y2=data[1, idx],
+        time_x[idx],
+        y1=rand_y[idx],
+        y2=data_y[idx],
+        color="#faad7c",
+        alpha=0.4,
+        lw=0,
+        zorder=1,
+    )
+    idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 4))[0]
+    ax.fill_between(
+        time_x[idx],
+        y1=rand_y[idx],
+        y2=data_y[idx],
         color="#49737a",
         alpha=0.4,
         lw=0,
         zorder=1,
     )
 
-    idx = np.where((rand[0, :] >= 4) & (rand[0, :] <= 7))[0]
+    # insert another point
+    ins_x = 7.32
+    ins_y = 0.123
+    idx = np.argwhere(time_x[:] > ins_x)[0][0]
+    time_x = np.insert(time_x, idx, ins_x)
+    data_y = np.insert(data_y, idx, ins_y)
+    rand_y = np.insert(rand_y, idx, ins_y)
+
+    idx = np.where((time_x[:] >= 4) & (time_x[:] <= ins_x))[0]
     ax.fill_between(
-        rand[0, idx],
-        y1=rand[1, idx],
-        y2=data[1, idx],
+        time_x[idx],
+        y1=rand_y[idx],
+        y2=data_y[idx],
         color="#faad7c",
+        alpha=0.4,
+        lw=0,
+        zorder=1,
+    )
+
+    idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 8))[0]
+    ax.fill_between(
+        time_x[idx],
+        y1=rand_y[idx],
+        y2=data_y[idx],
+        color="#49737a",
         alpha=0.4,
         lw=0,
         zorder=1,
@@ -2514,20 +2599,20 @@ def plot_spreading_rate():
 
     # ax.legend()
     ax.set_yscale("log")
-    ax.set_ylim(1e-6, 1.5e-5)
+    ax.set_ylim(1e-1, 2.0e-0)
     _fix_log_ticks(ax.yaxis, every=1)
-    ax.set_xlim(-0.2, 8)
+    ax.set_xlim(0, 8)
     ax.xaxis.set_major_locator(MultipleLocator(2))
     ax.xaxis.set_minor_locator(MultipleLocator(1))
     # ax.yaxis.set_major_locator(MultipleLocator(2))
     # ax.yaxis.set_minor_locator(MultipleLocator(1))
 
-    sns.despine(ax=ax, trim=True)
+    sns.despine(ax=ax, right=True, top=True, trim=False, offset=3)
 
     if show_ylabel:
-        ax.set_ylabel(r"Spreading rate $\lambda$")
+        ax.set_ylabel(r"Spreading rate $\lambda$\\n(1 / day)")
     if show_xlabel:
-        ax.set_xlabel("Latent period")
+        ax.set_xlabel("Latent period (days)")
     if show_legend:
         ax.legend(loc="lower left")
     if show_legend_in_extra_panel:
