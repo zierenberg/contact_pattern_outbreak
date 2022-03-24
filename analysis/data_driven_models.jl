@@ -157,8 +157,14 @@ function sample_mean_field(;
 
         probability_infection = 0.12 # heuristically chosen to match R approx 3.3 for infectious=3 and latent=4 when g=4
         infectious = 3 # days
-        range_latent = 0.0:0.5:8
+        #range_latent = 0.0:0.5:8
+        range_latent = 0.0:0.0
         for (l, latent) in enumerate(range_latent)
+            # special case of no latent period needs more cases to generate
+            # enough days for subsequent analyses
+            if latent == 0.0
+                max_cases = 5e6
+            end
             println(latent)
             disease_model = DeltaDiseaseModel(seconds_from_days(latent), seconds_from_days(infectious))
             #dist_offspring = distribution_from_samples_infectious_encounter(samples_infectious_encounter(disease_model, ets))
@@ -169,10 +175,11 @@ function sample_mean_field(;
                 rng = MersenneTwister(seed)
                 #println("...", seed)
                 times_initial_infections = -1 .* rand(rng, I0) .* seconds_from_days(latent+infectious)
-                measurement, sum_offsprings, sum_samples = spread_mean_field(disease_model, cond_encounter_rate, probability_infection, seconds_from_days.(0:1:120.), max_cases=max_cases, seed=seed, initial_infection_times=times_initial_infections)
+                measurement, sum_avg_Tgen, sum_offsprings, sum_samples  = spread_mean_field(disease_model, cond_encounter_rate, probability_infection, seconds_from_days.(0:1:120.), max_cases=max_cases, seed=seed, initial_infection_times=times_initial_infections)
 
                 myh5write(filename, @sprintf("/%s/cases/latent_%.2f/%d", dsetname, latent, seed), hcat(measurement.edges[1][1:end-1], measurement.weights))
                 myh5write(filename, @sprintf("/%s/R0/latent_%.2f/%d", dsetname, latent, seed), [sum_offsprings/sum_samples, sum_samples])
+                myh5write(filename, @sprintf("/%s/avg_Tgen/latent_%.2f/%d", dsetname, latent, seed), [sum_avg_Tgen/sum_offsprings, sum_offsprings])
             end
         end
     end
@@ -248,7 +255,6 @@ function analyse_mean_field(filename::String;
                 a = 3
                 # time shift new vs old, first use estimated generation time from data
                 g = round(Int64, time_generation)
-                println("average over: ", a, " range from, to: ", valid_range, " time shift: ", g)
 
                 if length(valid_range) <= g+a
                     mean_Rg[s] = NaN
@@ -275,7 +281,7 @@ function analyse_mean_field(filename::String;
                 #end
 
                 # spreading rate -> need information about x-axis
-                a = 2
+                a = floor(Int, 1+list_latent[l])
                 if length(valid_range) <= a
                     mean_rate[s] = NaN
                 else
