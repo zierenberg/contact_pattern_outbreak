@@ -1,5 +1,6 @@
 using Distributions
 using StatsBase
+using StatsFuns
 
 """
     branching_process(rng, offspring_dist, N_0, N_max, T)
@@ -84,6 +85,12 @@ end
 
 
 ##############
+"""
+    EmpiricalDistribution{T}
+
+empirical distribution that quantifies the probability for a specific outcome.
+Convention is that the probability for values that are not specified is zero.
+"""
 struct EmpiricalDistribution{T}
     values::T
     probabilities::ProbabilityWeights{Float64,Float64,Vector{Float64}}
@@ -92,13 +99,22 @@ struct EmpiricalDistribution{T}
         new{T}(values, ProbabilityWeights(probabilities))
     end
 end
-function EmpiricalDistribution(dist::Histogram{Float64})
-    @assert dist.isdensity
-    dx = step(dist.edges[1])
+function EmpiricalDistribution(hist::Histogram{Float64})
+    dist = normalize!(hist, mode=:probability)
     values = dist.edges[1][1:end-1]
-    EmpiricalDistribution(values, (dist.weights .* dx))
+    EmpiricalDistribution(values, (dist.weights))
 end
-EmpiricalDistribution(hist::Histogram{Int}) = EmpiricalDistribution(normalize!(float(hist)))
+EmpiricalDistribution(hist::Histogram{Int}) = EmpiricalDistribution(float(hist))
+# access edist[x]
+function Base.getindex(edist::EmpiricalDistribution{T}, x::Real) where {T}
+    idx = findfirst(val->val==x, edist.values)
+    if isnothing(idx)
+        # Convention: If the value is not specified, then probability is zero.
+        return 0
+    else
+        return @inbounds edist.probabilities[idx]
+    end
+end
 
 """
 custom version of random sampling from custom distribution using StatsBase
@@ -135,3 +151,51 @@ end
 Base.rand(pdist::ProbabilisticOffspringDistribution) = rand(Random.GLOBAL_RNG, pdist)
 
 
+
+
+
+
+
+
+"""
+    solve_survival_probability(edist, p)
+
+semi-analytical solution of the survival probability using the empirical
+distribution of potentially infectious encounters `edist`=P(n). The method assumes
+that infections are independent with probability `p` such that we can
+formulate an empirical probability generating function
+
+```math
+  \\pi(\\theta) = \\sum_{x=0}^\\infty \\sum_{n=x}^\\infty P(n) \\binom{n}{x} p^x (1-p)^{n-x}\\theta^x
+```
+
+The asymptotic survival probability is then obtained by numerically solving
+
+``\\theta=\\pi(\\theta)``
+
+"""
+#TODO: constrain that edist is only for integer elements
+function solve_survival_probability(edist::EmpiricalDistribution{T}, p::Number) where T
+    offspring_values = collect(0:maximum(edist.values))
+    offspring_probs = zeros(length(offspring_values))
+    for (i,x) in enumerate(offspring_values)
+        for n in x:edist.values[end]
+            offspring_probs[i] += edist[n] * binompdf(n, p, x)
+        end
+    end
+    offspring_dist = EmpiricalDistribution(offspring_values, offspring_probs)
+
+    # extinction probability is given by the smalles root to x-pfg(x)
+    p_ext = find_zero(x->x - _pgf(x, offspring_dist), 0.0)
+
+    # by definition one root is at x=1, so that needs to be excluded.
+    return 1 - p_ext
+end
+
+
+
+
+
+function _pgf(theta, offspring_dist)
+    return sum(theta.^offspring_dist.values .* offspring_dist.probabilities)
+end
