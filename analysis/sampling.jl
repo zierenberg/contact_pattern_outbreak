@@ -164,6 +164,46 @@ which it is convenient that num_sample_trains is a multiple of weights.
 In addition, a timestep can be specified that is typically used as intrinsic
 discretization of distributions where the natural timestep of the experiment is
 used. Should be tailored to experimenta that one ones to compare with.
+
+experiment = Copenhagen()
+minimum_duration = 15*60
+path_dat = "./dat"
+_,ets_data, _ = load_processed_data(experiment, minimum_duration, path_dat);
+prob = rate(ets_data, 0:timestep(ets_data):seconds_from_days(7))
+prob.weights ./= maximum(prob.weights)
+dist = distribution_durations(inter_encounter_intervals(ets_data), timestep=timestep(ets_data));
+xbin_data, Pbin_data = logbin(dist)
+shape, scale = fit_Weibull(dist)
+
+train_weights = length.(ets_data) ./ mean(length.(ets_data))
+
+
+rate_weight = 1/mean(prob.weights)
+#rescale = scale/rate_weight
+#shape=0.36, scale=3030
+reshape = 0.32
+rescale = 300
+
+rng = MersenneTwister(1000)
+time_start = -seconds_from_days(7)*rand(rng)
+interval_record = (0,seconds_from_days(28))
+num_sample_trains = length(train_weights)
+encounter_times = [cyclic_renewal_process(prob, Weibull(reshape, rescale/train_weights[i]), time_start, interval_record, rng) for i in 1:num_sample_trains];
+ets_test = encounter_trains(encounter_times, collect(1:num_sample_trains), interval_record[2]-interval_record[1], timestep(ets_data))
+
+# validation
+dist_test = distribution_durations(inter_encounter_intervals(ets_test), timestep=timestep(ets_data));
+xbin, Pbin, = logbin(dist_test)
+plot(log.(xbin), log.(Pbin))
+plot!(log.(xbin_data), log.(Pbin_data))
+
+
+ contact_rate = rate(ets_test, 0:timestep(ets_test):seconds_from_days(7))
+ plot(contact_rate.edges[1][1:end-1], contact_rate.weights./maximum(contact_rate.weights))
+ plot!(prob.edges[1][1:end-1], prob.weights)
+
+
+
 """
 function sample_encounter_trains_weibull_renewal(
         args_weibull::NamedTuple{(:shape, :scale)},
@@ -180,9 +220,10 @@ function sample_encounter_trains_weibull_renewal(
     else
         # adjust mean = scale*Gamma(1+1/shape) inversely to weight by preserving shape, i.e. by adjusting scale as scale/weight (increased weight means incrased rate means decreased mean)
         # rate = 1/mean
-        # rate*weight = weight/mean = weight /scale *Gamma(1+1/shape) = Gamma(1+1/scale/scale_new -> scale_new = scale/weight
+        # rate*weight = weight/mean = weight /scale *Gamma(1+1/shape) = Gamma(1+1/scale)/scale_new -> scale_new = scale/weight
         encounter_times = [renewal_process(Weibull(shape, scale/weights[mod1(i,end)]), time_start, interval_record, rng) for i in 1:num_sample_trains];
     end
+        encounter_times = [renewal_process(Weibull(shape, scale), time_start, interval_record, rng) for i in 1:num_sample_trains];
     return encounter_trains(encounter_times, collect(1:num_sample_trains), interval_record[2]-interval_record[1], timestep);
 end
 
@@ -245,7 +286,7 @@ function inhomogeneous_poisson_process(rate::AbstractHistogram, time_start::Real
         # weight is only used in the dt step because then the rate_max and rate have the same scale
         time += randexp(rng)/rate_max/weight
         if time_min <= time < time_max
-            if rand(rng) < get_rate_pbc(rate,time)/rate_max
+            if rand(rng) < get_pbc(rate,time)/rate_max
                 push!(times, time)
             end
         end
@@ -254,7 +295,7 @@ function inhomogeneous_poisson_process(rate::AbstractHistogram, time_start::Real
     return times
 end
 
-function get_rate_pbc(rate::AbstractHistogram, time::Real)
+function get_pbc(rate::AbstractHistogram, time::Real)
     time_ref = rate.edges[1][1]
     time_dur = rate.edges[1][end] - time_ref
     # scalar arguments are copied by default and can be operated on
@@ -285,6 +326,43 @@ function renewal_process(Pdt::UnivariateDistribution, time_start::Real, interval
         time += rand(rng, Pdt)
         if time_min <= time < time_max
             push!(times, time)
+        end
+    end
+
+    return times
+end
+
+"""
+    cyclic_renewal_process(prob, Pdt, time_start, interval_record [,weight=1])
+
+generates event times according to a renewal process specified by probability
+of next inter-encounter-interval `Pdt` but accepts new events with probability
+to reproduce time-dependent `rate`.  Times are only written if in the
+`interval_record` (Tuple of start and end that specify start <= times < end).
+`time_start` can be specified in order to relax the process such that the
+assumption of an event at time 0 is relaxed.
+
+The time-dependent `rate` has to be of type AbstractHistogram, e.g., in the
+range 0:timestep:time_week, and will be considered with periodic boundary
+conditions, i.e., times that are outside of the times specified in rate are
+projected back into the range.
+
+The function can be augmented with a weight that increases or decreases the mean rate.
+"""
+function cyclic_renewal_process(prob::AbstractHistogram, Pdt::UnivariateDistribution, time_start::Real, interval_record::Tuple{Real,Real}, rng::AbstractRNG; weight=1.0)
+    @assert time_start <= first(interval_record)
+    @assert maximum(prob.weights) <= 1
+    time_min = first(interval_record)
+    time_max = last(interval_record)
+
+    time = float(time_start)
+    times = Float64[]
+    while time < time_max
+        time += rand(rng, Pdt)
+        if time_min <= time < time_max
+            if rand(rng) < get_pbc(prob,time)
+                push!(times, time)
+            end
         end
     end
 
