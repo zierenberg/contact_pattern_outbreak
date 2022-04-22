@@ -21,7 +21,9 @@ include("error.jl")
 include("sampling.jl")
 include("surrogate.jl")
 
-
+default_range_latent     = 0:0.05:8
+default_range_infectious = 0.05:0.05:8
+default_support_crate = 0:300:seconds_from_days(7*1.5)
 
 """
 # when using only intermediate functions:
@@ -77,8 +79,8 @@ function analyse_all(
 
 
     # disease periods
-    range_latent = 0:0.05:8
-    range_infectious = 0.05:0.05:8
+    range_latent = default_range_latent
+    range_infectious = default_range_infectious
 
     if lod >= 1
         root="/data_surrogate_randomize_per_train"
@@ -96,63 +98,6 @@ function analyse_all(
         myh5write(filename,@sprintf("%s/trains/",root), sur_rand_all)
         analyse_temporal_features_of_encounter_train(sur_rand_all, filename, @sprintf("%s/encounter_train",root), support_crate=support_crate)
         analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur_rand_all, ref, filename, @sprintf("%s/disease/delta", root))
-    end
-
-    # surrogates from sampling
-    if lod >= 3
-        num_sample_trains = length(ets)
-        # weights for trains
-        train_weights = length.(ets) ./ mean(length.(ets))
-
-        # (inhomogeneous) poisson processes
-        contact_rate = rate(ets, 0:timestep(ets):seconds_from_days(7))
-        mean_rate = mean(contact_rate.weights)
-
-        root="sample/poisson_homogeneous/"
-        samples = sample_encounter_trains_poisson(mean_rate, num_sample_trains, -seconds_from_days(7), (0, duration(ets)), MersenneTwister(seed), timestep=timestep(ets))
-        analyse_temporal_features_of_encounter_train(samples, filename, root, support_crate=support_crate)
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, samples, ref, filename, @sprintf("%s/disease/delta", root))
-
-        root="sample/poisson_homogeneous_weighted_trains/"
-        samples = sample_encounter_trains_poisson(mean_rate, num_sample_trains, -seconds_from_days(7), (0, duration(ets)), MersenneTwister(seed), timestep=timestep(ets), weights=train_weights)
-        analyse_temporal_features_of_encounter_train(samples, filename, root, support_crate=support_crate)
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, samples, ref, filename, @sprintf("%s/disease/delta", root))
-
-        root="sample/poisson_inhomogeneous/"
-        samples = sample_encounter_trains_poisson(contact_rate, num_sample_trains, -seconds_from_days(7), (0, duration(ets)), MersenneTwister(seed), timestep=timestep(ets))
-        analyse_temporal_features_of_encounter_train(samples, filename, root, support_crate=support_crate)
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, samples, ref, filename, @sprintf("%s/disease/delta", root))
-
-
-        root="sample/poisson_inhomogeneous_weighted_trains/"
-        samples = sample_encounter_trains_poisson(contact_rate, num_sample_trains, -seconds_from_days(7), (0, duration(ets)), MersenneTwister(seed), timestep=timestep(ets), weights=train_weights)
-        analyse_temporal_features_of_encounter_train(samples, filename, root, support_crate=support_crate)
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, samples, ref, filename, @sprintf("%s/disease/delta", root))
-
-        # for inhomogeneous Poisson (with individual rates), we also want to measure delta disease progression, like for the real data
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), samples, filename,  @sprintf("%s/disease/delta_2_3", root))
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), samples, filename,  @sprintf("%s/disease/delta_6_3", root))
-
-        # weibull renewal processes
-        list_dts = inter_encounter_intervals(ets);
-        list_dts = list_dts[length.(list_dts) .> 0];
-        dist = distribution_durations(list_dts, timestep=timestep(ets));
-        args_weibull = fit_Weibull(dist)
-
-        # weibull renewal
-        root="sample/weibul_renewal_process/"
-        samples = sample_encounter_trains_weibull_renewal(args_weibull, num_sample_trains, -seconds_from_days(7), (0, duration(ets)), MersenneTwister(seed), timestep=timestep(ets))
-        analyse_temporal_features_of_encounter_train(samples, filename, root, support_crate=support_crate)
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, samples, ref, filename, @sprintf("%s/disease/delta", root))
-
-        # weibull renewal with weighted trains
-        root="sample/weibul_renewal_process_weighted_trains/"
-        samples = sample_encounter_trains_weibull_renewal(args_weibull, num_sample_trains, -seconds_from_days(7), (0, duration(ets)), MersenneTwister(seed), timestep=timestep(ets), weights=train_weights)
-        analyse_temporal_features_of_encounter_train(samples, filename, root, support_crate=support_crate)
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, samples, ref, filename, @sprintf("%s/disease/delta", root))
-
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), samples, filename,  @sprintf("%s/disease/delta_2_3", root))
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), samples, filename,  @sprintf("%s/disease/delta_6_3", root))
     end
 
 
@@ -308,11 +253,13 @@ function analyse_temporal_features_of_encounter_train(
         ets::encounter_trains{I,T},
         filename::String,
         root::String;
-        ############ optional
-        lags=0:1:200,                                         # lags for autocorrelation
-        times_rate=0:60*60:seconds_from_days(7),        # 1-week contact rate in steps of hours
-        support_crate=0:timestep(ets):seconds_from_days(7*1.5),# 1.5-week conditional contact rate
-
+        ############ optional/default
+        # lags for autocorrelation
+        lags = 0:1:200,
+        # 1-week contact rate in steps of hours
+        times_rate = 0:60*60:seconds_from_days(7),
+        # 1.5-week conditional contact rate
+        support_crate = 0:timestep(ets):seconds_from_days(7*1.5),
     ) where {I,T}
     println("writing to ", root)
 
@@ -450,6 +397,7 @@ function analyse_infectious_encounter_detail(
     # viral load
     println("... ... disease progression")
     time_range = 0:60*60:seconds_from_days(21)
+    print("... ... evaluate viral load\n")
     load = viral_load(disease_model, time_range)
     myh5write(filename, @sprintf("%s/viral_load", root), load)
     myh5desc(filename, @sprintf("%s/viral_load", root),
@@ -640,6 +588,10 @@ function analyse_infectious_encounter_scan_gamma(
     myh5desc(filename, @sprintf("%s/scan_k", root),
              "k dependence of the mean number of infectious encounters for gamma-distributied disease models (parameters in dsets), d1: k, d2: mean(full), d3: mean(jack), d4: mean(err)")
 end
+
+
+
+
 
 ###############################################################################
 ###############################################################################

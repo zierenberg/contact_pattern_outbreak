@@ -14,15 +14,557 @@ include("branching_process.jl")
 include("surrogate.jl")
 include("sampling.jl")
 include("temporal_features.jl")
+include("data_analysis.jl")
 
 ###############################################################################
 ###############################################################################
-# sample disease spread as branching process that generates offsprings from
-# data-driven distribution
+###############################################################################
+# data-driven surrogate point processes
 
 """
-    experiment=Copenhagen(); minimum_duration = 15*60; path_dat="./dat"; seed_rand=1000;
-    T_lat=2;T_ift=3
+    sample_surrogate_tailored()
+
+generate samples of high-rate Weibull renewal processes, where encounter are
+accepted with probability to match time-dependent rate. Weibull parameters are
+obtained from minimal Kullback-Leibler divergence between empirical iei-dist
+and sample iei-dist tails.
+
+experiment=Copenhagen(); minimum_duration=15*60; path_dat="./dat"
+"""
+function sample_surrogate_tailored(
+        experiment=Copenhagen(),
+        minimum_duration = 15*60,
+        path_dat = "./dat",
+        path_out = "./out",
+        num_samples = 20,
+        support_crate=0:300:seconds_from_days(7*1.5),
+        range_latent = default_range_latent,
+        range_infectious = default_range_infectious,
+    )
+    filename = @sprintf("%s/surrogate_tailored_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
+    _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+
+    time_start = -seconds_from_days(7)
+    interval_record = (0,seconds_from_days(28))
+
+    # specificy features that need to be reproducde
+    # number of trains:
+    num_sample_trains = length(ets)
+    # relative rate (prop. to number of encounters) of each train compared to mean:
+    train_weights = length.(ets) ./ mean(length.(ets))
+    # time-dependent global rate:
+    ref_rate = rate(ets, 0:timestep(ets):seconds_from_days(7))
+    # mean global rate:
+    ref_rate_mean = mean(ref_rate.weights)
+    # reference distribution of inter-encounter intervals
+    edges = timestep(ets)*(150:1:1500)
+    ref_dist = distribution_durations(inter_encounter_intervals(ets), edges=edges);
+
+    # precompute internals for loop
+    ref_rate_max = maximum(ref_rate.weights)
+    time_prob = deepcopy(ref_rate)
+    time_prob.weights /= ref_rate_max
+
+    println("""
+            Sweep over shape parameter to determine optimal parameters for
+            small KL-divergence between inter-encounter-interval distributions
+            from sample and data
+            """)
+    range_shape = collect(0.1:0.01:1.0)
+    range_kld1 = zeros(length(range_shape))
+    range_kld2 = zeros(length(range_shape))
+    @showprogress 1 for (i, _shape) in enumerate(range_shape)
+        for j in 1:num_samples
+            #for reproducibilty, always start from the same seed for different
+            #parameters that will immediately result in uncorrelated encounter
+            #trains because the underlying distribution is different.
+            rng = MersenneTwister(1000+j)
+            test_ets,_ = sample_encounter_trains_tailored(rng, _shape,
+                                                        ref_rate_max,
+                                                        time_prob,
+                                                        train_weights,
+                                                        time_start,
+                                                        interval_record,
+                                                        timestep(ets))
+
+            test_dist = distribution_durations(
+                                    inter_encounter_intervals(test_ets),
+                                    edges=ref_dist.edges[1]
+                                    )
+            kld = kldivergence(test_dist, ref_dist)
+            range_kld1[i] += kld
+            range_kld2[i] += kld^2
+       end
+       range_kld1[i] /= num_samples
+       range_kld2[i] /= num_samples
+    end
+    range_err = sqrt.((range_kld2 - range_kld1.^2)/num_samples)
+    datasetname=@sprintf("/scan_parameter_shape")
+    myh5write(filename, datasetname, hcat(range_shape, range_kld1, range_err))
+    myh5desc(filename, datasetname, @sprintf(
+             "Average Kullback-Leibler divergence (kld) from %d samples as a function of the single
+             free parameter (shape) ,
+             d1: shape,
+             d2: kld,
+             d3: err(kld)",
+             num_samples)
+            )
+
+    println("Find best shape parameter from the minimum kl-divergence")
+    best_shape = range_shape[argmin(range_kld1)]
+    rng = MersenneTwister(1000)
+    samples, best_scale =  sample_encounter_trains_tailored(rng, best_shape,
+                                                             ref_rate_max,
+                                                             time_prob,
+                                                             train_weights,
+                                                             time_start,
+                                                             interval_record,
+                                                             timestep(ets))
+    myh5write(filename, "/best_parameters/shape", best_shape)
+    myh5write(filename, "/best_parameters/scale", best_scale)
+    myh5write(filename, "/best_parameters/rate_max", ref_rate_max)
+    myh5write(filename, "/best_parameters/time_prob", hcat(time_prob.edges[1][1:end-1], time_prob.weights))
+    myh5write(filename, "/best_parameters/train_weights", train_weights)
+    myh5write(filename, "/best_parameters/time_start", time_start)
+    myh5write(filename, "/best_parameters/interval_record", [interval_record...])
+    myh5write(filename, "/best_parameters/timestep", timestep(ets))
+
+    root="/"
+    println("Analyse temporal features")
+    analyse_temporal_features_of_encounter_train(samples,
+                                                 filename,
+                                                 root,
+                                                 support_crate=support_crate)
+
+    println("Analyse disease-related features")
+    #for historical reasons, we save encounters normalized to randomized.
+    seed=1000
+    ref = surrogate_randomize_per_train(ets, seed)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
+                                            samples, ref, filename,
+                                            @sprintf("%s/disease/delta", root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_2_3",
+                                                                   root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_6_3",
+                                                                   root))
+end
+
+#############
+## Poisson based
+
+"""
+    sample_surrogate_sample_surrogate_inhomogeneous_poisson_weighted()
+
+generate samples of inhomogeneous Poisson processes with heterogeneous
+(weighted) weights to match the time-dependent rates of the data.
+
+experiment=Copenhagen(); minimum_duration=15*60; path_dat="./dat"
+"""
+function sample_surrogate_inhomogeneous_poisson_weighted(
+        experiment = Copenhagen(),
+        minimum_duration = 15*60,
+        path_dat = "./dat",
+        path_out = "./out",
+        num_samples = 20,
+        support_crate = default_support_crate,
+        range_latent = default_range_latent,
+        range_infectious = default_range_infectious,
+        seed=1000,
+    )
+    filename = @sprintf("%s/surrogate_inhomogeneous_poisson_weighted_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
+    _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    # specificy features that need to be reproducde
+    # number of trains:
+    num_sample_trains = length(ets)
+    # relative rate (prop. to number of encounters) of each train compared to mean:
+    train_weights = length.(ets) ./ mean(length.(ets))
+    # time-dependent global rate:
+    ref_rate = rate(ets, 0:timestep(ets):seconds_from_days(7))
+    mean_rate = mean(ref_rate.weights)
+
+    time_start = -seconds_from_days(7)
+    interval_record = (0,seconds_from_days(28))
+    samples = sample_encounter_trains_poisson(ref_rate,
+                                              num_sample_trains,
+                                              time_start,
+                                              interval_record,
+                                              MersenneTwister(seed),
+                                              timestep=timestep(ets),
+                                              weights=train_weights)
+
+    root="/"
+    println("Analyse temporal features")
+    analyse_temporal_features_of_encounter_train(samples,
+                                                 filename,
+                                                 root,
+                                                 support_crate=support_crate)
+
+    println("Analyse disease-related features")
+    #for historical reasons, we save encounters normalized to randomized.
+    ref = surrogate_randomize_per_train(ets, seed)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
+                                            samples, ref, filename,
+                                            @sprintf("%s/disease/delta", root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_2_3",
+                                                                   root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_6_3",
+                                                                   root))
+end
+
+
+"""
+    sample_surrogate_sample_surrogate_inhomogeneous_poisson()
+
+generate samples of inhomogeneous Poisson processes with same mean rates that
+match the time-dependent rate of the data.
+
+experiment=Copenhagen(); minimum_duration=15*60; path_dat="./dat"
+"""
+function sample_surrogate_inhomogeneous_poisson(
+        experiment = Copenhagen(),
+        minimum_duration = 15*60,
+        path_dat = "./dat",
+        path_out = "./out",
+        num_samples = 20,
+        support_crate = default_support_crate,
+        range_latent = default_range_latent,
+        range_infectious = default_range_infectious,
+        seed=1000,
+    )
+    filename = @sprintf("%s/surrogate_inhomogeneous_poisson_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
+    _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    # specificy features that need to be reproducde
+    # number of trains:
+    num_sample_trains = length(ets)
+    # time-dependent global rate:
+    ref_rate = rate(ets, 0:timestep(ets):seconds_from_days(7))
+    mean_rate = mean(ref_rate.weights)
+
+    time_start = -seconds_from_days(7)
+    interval_record = (0,seconds_from_days(28))
+    samples = sample_encounter_trains_poisson(ref_rate,
+                                              num_sample_trains,
+                                              time_start,
+                                              interval_record,
+                                              MersenneTwister(seed),
+                                              timestep=timestep(ets))
+
+    root="/"
+    println("Analyse temporal features")
+    analyse_temporal_features_of_encounter_train(samples,
+                                                 filename,
+                                                 root,
+                                                 support_crate=support_crate)
+
+    println("Analyse disease-related features")
+    #for historical reasons, we save encounters normalized to randomized.
+    ref = surrogate_randomize_per_train(ets, seed)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
+                                            samples, ref, filename,
+                                            @sprintf("%s/disease/delta", root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_2_3",
+                                                                   root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_6_3",
+                                                                   root))
+end
+
+
+"""
+    sample_surrogate_sample_surrogate_homogeneous_poisson_weighted()
+
+generate samples of homogeneous Poisson processes with heterogeneous
+weights to match the heterogeneous rates of the data.
+
+experiment=Copenhagen(); minimum_duration=15*60; path_dat="./dat"
+"""
+function sample_surrogate_homogeneous_poisson_weighted(
+        experiment = Copenhagen(),
+        minimum_duration = 15*60,
+        path_dat = "./dat",
+        path_out = "./out",
+        num_samples = 20,
+        support_crate = default_support_crate,
+        range_latent = default_range_latent,
+        range_infectious = default_range_infectious,
+        seed=1000,
+    )
+    filename = @sprintf("%s/surrogate_homogeneous_poisson_weighted_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
+    _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    # specificy features that need to be reproducde
+    # number of trains:
+    num_sample_trains = length(ets)
+    # relative rate (prop. to number of encounters) of each train compared to mean:
+    train_weights = length.(ets) ./ mean(length.(ets))
+    # time-dependent global rate:
+    ref_rate = rate(ets, 0:timestep(ets):seconds_from_days(7))
+    mean_rate = mean(ref_rate.weights)
+
+    time_start = -seconds_from_days(7)
+    interval_record = (0,seconds_from_days(28))
+    samples = sample_encounter_trains_poisson(mean_rate,
+                                              num_sample_trains,
+                                              time_start,
+                                              interval_record,
+                                              MersenneTwister(seed),
+                                              timestep=timestep(ets),
+                                              weights=train_weights)
+
+    root="/"
+    println("Analyse temporal features")
+    analyse_temporal_features_of_encounter_train(samples,
+                                                 filename,
+                                                 root,
+                                                 support_crate=support_crate)
+
+    println("Analyse disease-related features")
+    #for historical reasons, we save encounters normalized to randomized.
+    ref = surrogate_randomize_per_train(ets, seed)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
+                                            samples, ref, filename,
+                                            @sprintf("%s/disease/delta", root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_2_3",
+                                                                   root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_6_3",
+                                                                   root))
+end
+
+
+"""
+    sample_surrogate_sample_surrogate_homogeneous_poisson()
+
+generate samples of homogeneous Poisson processes with same mean rates that
+match the mean rate of the data.
+
+experiment=Copenhagen(); minimum_duration=15*60; path_dat="./dat"
+"""
+function sample_surrogate_homogeneous_poisson(
+        experiment = Copenhagen(),
+        minimum_duration = 15*60,
+        path_dat = "./dat",
+        path_out = "./out",
+        num_samples = 20,
+        support_crate = default_support_crate,
+        range_latent = default_range_latent,
+        range_infectious = default_range_infectious,
+        seed=1000,
+    )
+    filename = @sprintf("%s/surrogate_homogeneous_poisson_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
+    _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    # specificy features that need to be reproducde
+    # number of trains:
+    num_sample_trains = length(ets)
+    # time-dependent global rate:
+    ref_rate = rate(ets, 0:timestep(ets):seconds_from_days(7))
+    mean_rate = mean(ref_rate.weights)
+
+    time_start = -seconds_from_days(7)
+    interval_record = (0,seconds_from_days(28))
+
+    samples = sample_encounter_trains_poisson(mean_rate,
+                                              num_sample_trains,
+                                              time_start,
+                                              interval_record,
+                                              MersenneTwister(seed),
+                                              timestep=timestep(ets))
+
+    root="/"
+    println("Analyse temporal features")
+    analyse_temporal_features_of_encounter_train(samples,
+                                                 filename,
+                                                 root,
+                                                 support_crate=support_crate)
+
+    println("Analyse disease-related features")
+    #for historical reasons, we save encounters normalized to randomized.
+    ref = surrogate_randomize_per_train(ets, seed)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
+                                            samples, ref, filename,
+                                            @sprintf("%s/disease/delta", root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_2_3",
+                                                                   root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_6_3",
+                                                                   root))
+end
+
+#############
+## Weibull based
+
+"""
+    sample_surrogate_sample_surrogate_weibull_weighted()
+
+generate samples of Weibull renewal processes with heterogeneous (weighted)
+weights to match the inter-encounter-interval distributino of the data.
+
+experiment=Copenhagen(); minimum_duration=15*60; path_dat="./dat"
+"""
+function sample_surrogate_weibull_weighted(
+        experiment = Copenhagen(),
+        minimum_duration = 15*60,
+        path_dat = "./dat",
+        path_out = "./out",
+        num_samples = 20,
+        support_crate = default_support_crate,
+        range_latent = default_range_latent,
+        range_infectious = default_range_infectious,
+        seed=1000,
+    )
+    filename = @sprintf("%s/surrogate_weibull_weighted_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
+    _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    # specificy features that need to be reproducde
+    # number of trains:
+    num_sample_trains = length(ets)
+    # relative rate (prop. to number of encounters) of each train compared to mean:
+    train_weights = length.(ets) ./ mean(length.(ets))
+    # relative rate (prop. to number of encounters) of each train compared to mean:
+    train_weights = length.(ets) ./ mean(length.(ets))
+    # reference distribution of inter-encounter intervals
+    ref_dist = distribution_durations(inter_encounter_intervals(ets), timestep=timestep(ets));
+    args_weibull = fit_Weibull(ref_dist)
+
+    time_start = -seconds_from_days(7)
+    interval_record = (0,seconds_from_days(28))
+
+    samples = sample_encounter_trains_weibull_renewal(args_weibull,
+                                              num_sample_trains,
+                                              time_start,
+                                              interval_record,
+                                              MersenneTwister(seed),
+                                              timestep=timestep(ets),
+                                              weights=train_weights)
+
+    root="/"
+    println("Analyse temporal features")
+    analyse_temporal_features_of_encounter_train(samples,
+                                                 filename,
+                                                 root,
+                                                 support_crate=support_crate)
+
+    println("Analyse disease-related features")
+    #for historical reasons, we save encounters normalized to randomized.
+    ref = surrogate_randomize_per_train(ets, seed)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
+                                            samples, ref, filename,
+                                            @sprintf("%s/disease/delta", root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_2_3",
+                                                                   root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_6_3",
+                                                                   root))
+end
+
+"""
+    sample_surrogate_sample_surrogate_weibull()
+
+generate samples of Weibull renewal processes with same paramters to match the
+inter-encounter-interval distributinon of the data.
+
+experiment=Copenhagen(); minimum_duration=15*60; path_dat="./dat"
+"""
+function sample_surrogate_weibull(
+        experiment = Copenhagen(),
+        minimum_duration = 15*60,
+        path_dat = "./dat",
+        path_out = "./out",
+        num_samples = 20,
+        support_crate = default_support_crate,
+        range_latent = default_range_latent,
+        range_infectious = default_range_infectious,
+        seed=1000,
+    )
+    filename = @sprintf("%s/surrogate_weibull_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
+    _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    # specificy features that need to be reproducde
+    # number of trains:
+    num_sample_trains = length(ets)
+    # reference distribution of inter-encounter intervals
+    ref_dist = distribution_durations(inter_encounter_intervals(ets), timestep=timestep(ets));
+    args_weibull = fit_Weibull(ref_dist)
+
+    time_start = -seconds_from_days(7)
+    interval_record = (0,seconds_from_days(28))
+
+    samples = sample_encounter_trains_weibull_renewal(args_weibull,
+                                              num_sample_trains,
+                                              time_start,
+                                              interval_record,
+                                              MersenneTwister(seed),
+                                              timestep=timestep(ets))
+
+    root="/"
+    println("Analyse temporal features")
+    analyse_temporal_features_of_encounter_train(samples,
+                                                 filename,
+                                                 root,
+                                                 support_crate=support_crate)
+
+    println("Analyse disease-related features")
+    #for historical reasons, we save encounters normalized to randomized.
+    ref = surrogate_randomize_per_train(ets, seed)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
+                                            samples, ref, filename,
+                                            @sprintf("%s/disease/delta", root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_2_3",
+                                                                   root))
+    analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6),
+                                                          seconds_from_days(3)),
+                                                          samples, filename,
+                                                          @sprintf("%s/disease/delta_6_3",
+                                                                   root))
+end
+
+###############################################################################
+###############################################################################
+###############################################################################
+# data-driven branching processes
+
+"""
+    sample_braching_process()
+
+data-driven branching proceses that generates offsprings as doubly-stochastic
+process by first drawing pot. infectious encounters from empirical distribtion,
+which determine binomial distribution that describe independent infection of
+each encounter with a given probability
+
+experiment=Copenhagen(); minimum_duration = 15*60; path_dat="./dat"; seed_rand=1000;
+T_lat=2;T_ift=3
 """
 function sample_branching_process(
         #optional
@@ -116,8 +658,14 @@ function sample_branching_process(
 end
 
 """
-    experiment=Copenhagen(); minimum_duration = 15*60; path_dat="./dat"; seed_rand=1000;
-    T_lat=2;T_ift=3
+    analytic_survivial_probability()
+
+solve numerically the analytic self-consistent equation of the probability
+generating function for the data-driven branching process.
+
+
+experiment=Copenhagen(); minimum_duration = 15*60; path_dat="./dat"; seed_rand=1000;
+T_lat=2;T_ift=3
 """
 function analytic_survival_probability(
         #optional
@@ -125,6 +673,7 @@ function analytic_survival_probability(
         minimum_duration = 15*60,
         path_dat = "./dat",
         path_out = "./out",
+        seed_rand = 1000,
     )
     filename = @sprintf("%s/analytic_survival_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
 
@@ -180,16 +729,10 @@ function analytic_survival_probability(
 
 end
 
-###############################################################################
-###############################################################################
-# sample disease spread with generative model that captures cyclic rate
-# features of data and analyse effective R from the time course of new cases.
-
 """
     experiment=Copenhagen(); minimum_duration=15*60;path_dat="./dat";I0=100;max_cases=1e6;
     cas, ets, list_contacts = load_processed_data(experiment, minimum_duration, path_dat);
     cond_encounter_rate = conditional_encounter_rate(ets, 0:timestep(ets):seconds_from_days(8+4))
-
 
     infectious=3
     latent=6
@@ -199,7 +742,7 @@ end
     probability_infection = 0.12 # heuristically chosen to match R approx 3.3 for infectious=3 and latent=4 when g=4
 
 """
-function sample_mean_field(;
+function sample_continuous_time_branching(;
         #optional
         experiment=Copenhagen(),
         minimum_duration = 15*60,
@@ -248,16 +791,18 @@ function sample_mean_field(;
     end
 
     # use real data
-    filename = @sprintf("%s/mean_field_samples_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
+    filename = @sprintf("%s/sample_continuous_branching_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
     cas, ets, list_contacts = load_processed_data(experiment, minimum_duration, path_dat);
     do_it(ets, filename, "measurements")
+    analyse_continuous_time_branching(filename, "measurements")
 
     # use randomized data
     ets = surrogate_randomize_per_train(ets, 1000)
     do_it(ets, filename, "measurements_randomized_per_train")
+    analyse_continuous_time_branching(filename, "measurements_randomized_per_train")
 end
 
-function analyse_mean_field(filename::String;
+function analyse_continuous_time_branching(filename::String;
         path_out = "./out",
         dsetname::String="measurements"
     )
@@ -369,7 +914,7 @@ function analyse_mean_field(filename::String;
         end
 
         # store results somewhere
-        open(@sprintf("%s/analysis_mean-field_%s.dat", path_out, dsetname), "w") do io
+        open(@sprintf("%s/analysis_continuous_branching_%s.dat", path_out, dsetname), "w") do io
             #write(io, "#latent\t avg(R4)\t std(R4)\t avg(Rg)\t std(Rg)\t avg(R0)\t std(R0)\t g\n")
             #writedlm(io, zip(list_latent, R4_avg, R4_std, Rg_avg, Rg_std, R0_avg, R0_std, Tg))
             write(io, "#latent\t avg(rate)\t std(rate)\t avg(Rg)\t std(Rg)\t avg(R0)\t std(R0)\t g\n")
@@ -378,3 +923,66 @@ function analyse_mean_field(filename::String;
     end
 end
 
+
+
+###############################################################################
+###############################################################################
+### quick visualization
+"""
+#ref
+"""
+function quick_visualization(ets, test_ets, observable)
+    if observable == "iei"
+        ref_dist = distribution_durations(
+                        inter_encounter_intervals(ets),
+                        timestep=timestep(ets)
+                    );
+        test_dist = distribution_durations(
+                        inter_encounter_intervals(test_ets),
+                        edges=ref_dist.edges[1]
+                    );
+        display(plot(ref_dist.edges[1][1:end-1], log.(ref_dist.weights)))
+        display(plot!(test_dist.edges[1][1:end-1], log.(test_dist.weights)))
+    end
+    if observable == "iei_log"
+        ref_dist = distribution_durations(
+                        inter_encounter_intervals(ets),
+                        timestep=timestep(ets)
+                    );
+        ref_x, ref_P, = logbin(ref_dist)
+        test_dist = distribution_durations(
+                        inter_encounter_intervals(test_ets),
+                        edges=ref_dist.edges[1]
+                    );
+
+        test_x, test_P, = logbin(test_dist)
+        display(plot(log.(ref_x), log.(ref_P)))
+        display(plot!(log.(test_x), log.(test_P)))
+    end
+    if observable == "rate"
+        ref_rate = rate(ets, 0:timestep(ets):seconds_from_days(7))
+        test_rate = rate(test_ets, 0:timestep(test_ets):seconds_from_days(7))
+        display(plot(ref_rate.edges[1][1:end-1], ref_rate.weights))
+        display(plot!(test_rate.edges[1][1:end-1], test_rate.weights))
+    end
+    if observable == "crate"
+        support_crate=0:timestep(ets):seconds_from_days(7*1.5)
+        ref_crate = conditional_encounter_rate(ets, support_crate)
+        test_crate = conditional_encounter_rate(test_ets, support_crate)
+        display(plot(ref_crate.edges[1][1:end-1], ref_crate.weights))
+        display(plot!(test_crate.edges[1][1:end-1], test_crate.weights))
+    end
+
+    if observable == "encounter_2_3"
+        ref_data = samples_infectious_encounter(
+                        DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)),
+                        ets)
+        ref_dist_encounter = distribution_from_samples_infectious_encounter(ref_data)
+        test_data = samples_infectious_encounter(
+                        DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)),
+                        test_ets)
+        test_dist_encounter = distribution_from_samples_infectious_encounter(test_data)
+        display(plot(ref_dist_encounter.edges[1][1:end-1], log.(ref_dist_encounter.weights)))
+        display(plot!(test_dist_encounter.edges[1][1:end-1], log.(test_dist_encounter.weights)))
+    end
+end

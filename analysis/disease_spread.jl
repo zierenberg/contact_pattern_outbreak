@@ -70,7 +70,6 @@ a `time_range` (for each step).
     * `seed`: seed of MersenneTwister random number generator
 """
 function viral_load(model::AbstractDiseaseModel, time_range; samples::Int=Int(1e6), seed::Int=1000)
-    print("... evaluate viral load\n")
     rng = MersenneTwister(seed)
     load = Histogram(time_range)
 
@@ -199,7 +198,7 @@ function samples_infectious_encounter_random_onset(
             end
             count_bad_tries += 1
             if count_bad_tries == 1000
-                throw(BoundsError(ets, "infectious interval does not fit into contact trains"))
+                throw(error("infectious interval does not fit into encounter trains"))
             end
         end
     end
@@ -257,7 +256,7 @@ function sample_infectious_encounter(
         end
         count_bad_tries += 1
         if count_bad_tries == 1000
-            throw(BoundsError(ets, "infectious interval does not fit into contact trains"))
+            throw(error("infectious interval does not fit into contact trains"))
         end
     end
 end

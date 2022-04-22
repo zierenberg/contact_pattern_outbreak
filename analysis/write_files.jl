@@ -38,6 +38,7 @@ function myh5write(filename, datasetname, data::AbstractArray)
         end
     end
 end
+myh5write(filename, datasetname, data::Number) = myh5write(filename, datasetname, [data,])
 
 """
 wrapper for h5write to directly deal with a StatsBase distribution

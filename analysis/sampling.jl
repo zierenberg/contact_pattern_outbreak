@@ -163,47 +163,7 @@ which it is convenient that num_sample_trains is a multiple of weights.
 
 In addition, a timestep can be specified that is typically used as intrinsic
 discretization of distributions where the natural timestep of the experiment is
-used. Should be tailored to experimenta that one ones to compare with.
-
-experiment = Copenhagen()
-minimum_duration = 15*60
-path_dat = "./dat"
-_,ets_data, _ = load_processed_data(experiment, minimum_duration, path_dat);
-prob = rate(ets_data, 0:timestep(ets_data):seconds_from_days(7))
-prob.weights ./= maximum(prob.weights)
-dist = distribution_durations(inter_encounter_intervals(ets_data), timestep=timestep(ets_data));
-xbin_data, Pbin_data = logbin(dist)
-shape, scale = fit_Weibull(dist)
-
-train_weights = length.(ets_data) ./ mean(length.(ets_data))
-
-
-rate_weight = 1/mean(prob.weights)
-#rescale = scale/rate_weight
-#shape=0.36, scale=3030
-reshape = 0.32
-rescale = 300
-
-rng = MersenneTwister(1000)
-time_start = -seconds_from_days(7)*rand(rng)
-interval_record = (0,seconds_from_days(28))
-num_sample_trains = length(train_weights)
-encounter_times = [cyclic_renewal_process(prob, Weibull(reshape, rescale/train_weights[i]), time_start, interval_record, rng) for i in 1:num_sample_trains];
-ets_test = encounter_trains(encounter_times, collect(1:num_sample_trains), interval_record[2]-interval_record[1], timestep(ets_data))
-
-# validation
-dist_test = distribution_durations(inter_encounter_intervals(ets_test), timestep=timestep(ets_data));
-xbin, Pbin, = logbin(dist_test)
-plot(log.(xbin), log.(Pbin))
-plot!(log.(xbin_data), log.(Pbin_data))
-
-
- contact_rate = rate(ets_test, 0:timestep(ets_test):seconds_from_days(7))
- plot(contact_rate.edges[1][1:end-1], contact_rate.weights./maximum(contact_rate.weights))
- plot!(prob.edges[1][1:end-1], prob.weights)
-
-
-
+used. Should be tailored to experiment that one aims to compare with.
 """
 function sample_encounter_trains_weibull_renewal(
         args_weibull::NamedTuple{(:shape, :scale)},
@@ -226,6 +186,78 @@ function sample_encounter_trains_weibull_renewal(
         encounter_times = [renewal_process(Weibull(shape, scale), time_start, interval_record, rng) for i in 1:num_sample_trains];
     return encounter_trains(encounter_times, collect(1:num_sample_trains), interval_record[2]-interval_record[1], timestep);
 end
+
+
+"""
+    sample_encounter_trains_tailored(args_weibull, num_sample_trains, time_start, interval_record, rng, [weights=missing], [timestep=0]))
+"""
+function sample_encounter_trains_tailored(
+        rng::AbstractRNG,
+        shape_weibull::Number,
+        ref_rate::AbstractHistogram,
+        train_weights::Vector{T},
+        time_start::Real,
+        interval_record::Tuple{Real,Real};
+        timestep=step(ref_rate.edges[1])
+    ) where {T}
+    rate_max = maximum(ref_rate.weights)
+    # convert to probability to accept encounters
+    time_prob = deepcopy(ref_rate)
+    time_prob.weights /= rate_max
+
+    ets_sample, scale_weibull = sample_encounter_trains_tailored(rng,
+                                                                 shape_weibull,
+                                                                 rate_max,
+                                                                 time_prob,
+                                                                 train_weights,
+                                                                 time_start,
+                                                                 interval_record,
+                                                                 timestep)
+    return ets_sample, scale_weibull
+end
+function sample_encounter_trains_tailored(
+        rng::AbstractRNG,
+        shape_weibull::Number,
+        rate_max::Number,
+        time_prob::AbstractHistogram,
+        train_weights::Vector{T},
+        time_start::Real,
+        interval_record::Tuple{Real,Real},
+        timestep;
+    ) where {T}
+    # calculate weibull scale parameter to match max rate
+    scale_weibull = 1/(rate_max*gamma(1+1/shape_weibull))
+
+    # generate encounter times with cyclic renewal processes
+    encounter_times = [cyclic_renewal_process(time_prob,
+                                              Weibull(shape_weibull, scale_weibull/train_weights[i]),
+                                              time_start,
+                                              interval_record,
+                                              rng)
+                        for i in 1:length(train_weights)
+                       ];
+    ets_sample = encounter_trains(encounter_times,
+                                  collect(1:length(train_weights)),
+                                  interval_record[2]-interval_record[1],
+                                  timestep);
+
+    return ets_sample, scale_weibull
+end
+
+function _update(rng::AbstractRNG, value, dvalue)
+    return value + (rand(rng)*2-1)*dvalue
+end
+
+function _update(rng::AbstractRNG, value, dvalue, range::Tuple)
+    value_new = value + (rand(rng)*2-1)*dvalue
+    if (getindex(range,1) <= value_new < getindex(range,2))
+        return value_new
+    else
+        return value
+    end
+end
+
+
 
 ###############################################################################
 ###############################################################################
@@ -333,7 +365,7 @@ function renewal_process(Pdt::UnivariateDistribution, time_start::Real, interval
 end
 
 """
-    cyclic_renewal_process(prob, Pdt, time_start, interval_record [,weight=1])
+    cyclic_renewal_process(prob, Pdt, time_start, interval_record)
 
 generates event times according to a renewal process specified by probability
 of next inter-encounter-interval `Pdt` but accepts new events with probability
@@ -347,9 +379,10 @@ range 0:timestep:time_week, and will be considered with periodic boundary
 conditions, i.e., times that are outside of the times specified in rate are
 projected back into the range.
 
-The function can be augmented with a weight that increases or decreases the mean rate.
+In order to incorporate heterogeneous rates, one needs to rescale the
+parameters of Pdt that determine the mean
 """
-function cyclic_renewal_process(prob::AbstractHistogram, Pdt::UnivariateDistribution, time_start::Real, interval_record::Tuple{Real,Real}, rng::AbstractRNG; weight=1.0)
+function cyclic_renewal_process(prob::AbstractHistogram, Pdt::UnivariateDistribution, time_start::Real, interval_record::Tuple{Real,Real}, rng::AbstractRNG)
     @assert time_start <= first(interval_record)
     @assert maximum(prob.weights) <= 1
     time_min = first(interval_record)
@@ -369,12 +402,15 @@ function cyclic_renewal_process(prob::AbstractHistogram, Pdt::UnivariateDistribu
     return times
 end
 
+
+function fit_cyclic_renewal_process()
+end
+
 ###############################################################################
 ###############################################################################
 ### correlated Weibull renewal process
 
-#TODO: THIS IS NOT NICE!
-#Due to long times, start_time should be a random variable itself!
+#TODO: Due to long times, start_time should be a random variable itself!
 function correlated_weibull_renewal_process(params, args_weibull, time_start::Real, interval_record::Tuple{Real,Real}, rng::AbstractRNG)
     @assert time_start <= first(interval_record)
     time_min = first(interval_record)
@@ -485,7 +521,7 @@ function fit_correlated_Weibull(dist, lags, acf_data, acf_data_err; weibull_corr
     best_logL = last(best_fit)
     best_params = best_fit[1:end-1]
 
-    println(best_params)
+    #println(best_params)
 
     return list_logL, args_weibull, best_params, best_acf
 end

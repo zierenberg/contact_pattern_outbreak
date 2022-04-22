@@ -3,6 +3,7 @@ using StatsBase
 using Distributions
 
 import StatsBase.mean
+import StatsBase.kldivergence
 
 
 #increment is the factor by which bin increases (casted to integer)
@@ -86,4 +87,39 @@ function Base.setindex!(h::Histogram{T,N}, value::Real, xs::NTuple{N,Real}) wher
     if checkbounds(Bool, h.weights, idx...)
         @inbounds h.weights[idx...] = value
     end
+end
+
+
+###############################################################################
+"""
+    kldivergence(P::AbstractHistogram, Q::AbstractHistogram)
+
+convenience wrapper to estimate kl divergence of empirical distributions.
+Ensures consistent domain, ensures normalization, and avoids zero-entry issues.
+
+Kullback-Leibler divergence is not symmetric. Assumes that Q is reference
+distribution that we want to compare to.
+
+```
+  sum_{i} P_i * log(P_i/Q_i)
+```
+
+If Q_i are zero, we omit the entry.
+"""
+function kldivergence(P::AbstractHistogram, Q::AbstractHistogram)
+    @assert P.edges[1] == Q.edges[1]
+    @assert abs(sum(P.weights)*step(P.edges[1]) - 1) < 1e-10
+    @assert abs(sum(Q.weights)*step(Q.edges[1]) - 1) < 1e-10
+
+    kld = 0
+    for i in 1:length(P.weights)
+        P_i = P.weights[i]
+        if P_i > 0
+            Q_i = Q.weights[i]
+            if Q_i > 0
+                kld += P_i * log(P_i/Q_i)
+            end
+        end
+    end
+    return kld
 end
