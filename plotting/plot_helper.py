@@ -229,10 +229,7 @@ def figure_2(h5f=None):
     _set_size(ax, 5.2 * cm, 2.1 * cm)
 
     # different h5f
-    h5f = h5.recursive_load(
-        "./out/branching_process_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
-    )
-    ax = plot_survival_probability(h5f)
+    ax = plot_survival_probability()
     _set_size(ax, 5.2 * cm, 2.1 * cm)
 
 
@@ -1644,7 +1641,7 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
 
 
 # new Fig 2
-def plot_survival_probability(h5f, ax=None, apply_formatting=True):
+def plot_survival_probability(h5f=None, ax=None, apply_formatting=True, which="analytic"):
     """
     needs a different h5f than most plot functions:
     the branchin process one, by default `branching_process_Copenhagen_filtered_15min`
@@ -1655,10 +1652,25 @@ def plot_survival_probability(h5f, ax=None, apply_formatting=True):
     else:
         fig = ax.get_figure()
 
-    data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
-    data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
-    rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
-    rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
+    if h5f is None and which == "analytic":
+        h5f = h5.recursive_load(
+            "./out/analytic_survival_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
+        )
+    elif h5f is None and which == "branching_process":
+        h5f = h5.recursive_load(
+            "./out/branching_process_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
+        )
+
+    if which == "analytic":
+        data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p"
+        data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p"
+        rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p"
+        rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p"
+    elif which == "branching_process":
+        data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
+        data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
+        rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
+        rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
 
     for path in [data_2, data_6, rand_2, rand_6]:
         if "rand" in path:
@@ -1680,7 +1692,9 @@ def plot_survival_probability(h5f, ax=None, apply_formatting=True):
         x_repr = data[1, :]
         y_surv = data[2, :]
 
-        ax.plot(x_repr, y_surv, color=color, label=label, clip_on=False)
+        # we load survivial probability but decided to plot extinction probability
+        y_ext = 1 - y_surv
+        ax.plot(x_repr, y_ext, color=color, label=label, clip_on=False)
 
     if apply_formatting:
         ax.set_xlim(0, 6)
@@ -1695,7 +1709,7 @@ def plot_survival_probability(h5f, ax=None, apply_formatting=True):
         if show_xlabel:
             ax.set_xlabel(r"Reproduction number $R_0$")
         if show_ylabel:
-            ax.set_ylabel("Survival probability")
+            ax.set_ylabel("Extinction probability")
         # if show_title:
         # ax.set_title(f"{periods}", fontsize=8)
         if show_legend:
