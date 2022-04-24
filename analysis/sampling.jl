@@ -88,7 +88,7 @@ function spread_mean_field(
                 avg_Tgen += dt
             end
         end
-        sum_avg_Tgen += avg_dt
+        sum_avg_Tgen += avg_Tgen
 	    sum_offsprings += num_offsprings
 	    sum_samples += 1
     end

@@ -794,12 +794,12 @@ function sample_continuous_time_branching(;
     filename = @sprintf("%s/sample_continuous_branching_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
     cas, ets, list_contacts = load_processed_data(experiment, minimum_duration, path_dat);
     do_it(ets, filename, "measurements")
-    analyse_continuous_time_branching(filename, "measurements")
+    analyse_continuous_time_branching(filename, dsetname="measurements")
 
     # use randomized data
     ets = surrogate_randomize_per_train(ets, 1000)
     do_it(ets, filename, "measurements_randomized_per_train")
-    analyse_continuous_time_branching(filename, "measurements_randomized_per_train")
+    analyse_continuous_time_branching(filename, dsetname="measurements_randomized_per_train")
 end
 
 function analyse_continuous_time_branching(filename::String;
