@@ -763,8 +763,8 @@ function sample_continuous_time_branching(;
 
         probability_infection = 0.12 # heuristically chosen to match R approx 3.3 for infectious=3 and latent=4 when g=4
         infectious = 3 # days
-        #range_latent = 0.0:0.5:8
-        range_latent = 0.0:0.0
+        range_latent = 0.0:0.5:8
+        #range_latent = 0.0:0.0
         for (l, latent) in enumerate(range_latent)
             # special case of no latent period needs more cases to generate
             # enough days for subsequent analyses
