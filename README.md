@@ -29,6 +29,7 @@ Pkg.add.([
     "SpecialFunctions",
     "Statistics",
     "StatsBase",
+    "StatsFuns",
 ]);
 ```
 
