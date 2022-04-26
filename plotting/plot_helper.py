@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2021-11-04 11:10:58
+# @Last Modified: 2022-04-26 11:41:11
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -36,8 +36,21 @@
 # ```
 # ------------------------------------------------------------------------------ #
 
+# select things to draw for every panel for every panel
+show_title = True
+show_xlabel = False
+show_ylabel = False
+show_legend = True
+show_legend_in_extra_panel = False
+use_compact_size = True  # this recreates the small panel size of the manuscript
+debug = True
+
+# default marker size
+ms_default = 2
+
 # fmt: off
 import os
+from shutil import which
 import sys
 import glob
 import argparse
@@ -173,17 +186,6 @@ for key in clrs.palettes.keys():
 # cm to inch
 cm = 0.3937
 
-# select things to draw for every panel for every panel
-show_title = True
-show_xlabel = True
-show_ylabel = True
-show_legend = False
-show_legend_in_extra_panel = False
-use_compact_size = True  # this recreates the small panel size of the manuscript
-
-# default marker size
-ms_default = 2
-
 
 def main_manuscript():
     h5f = h5.recursive_load(
@@ -201,19 +203,14 @@ def main_manuscript():
 # ------------------------------------------------------------------------------ #
 
 
-def figure_1(h5f):
+def figure_1():
     log.info("Figure 1")
-    plot_etrain_rasters(h5f)
-    plot_etrain_rate(h5f)
-    plot_dist_inter_encounter_interval(h5f)
+
+    plot_etrain_rasters()
 
 
-def figure_2(h5f=None):
+def figure_2():
     log.info("Figure on encounter distributions and survival probability")
-    if h5f is None:
-        h5f = h5.recursive_load(
-            "./out/results_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
-        )
 
     # plot_etrain_raster_example(h5f)
     # ax = plot_disease_dist_infectious_encounters(h5f, ax=None, k="k_inf", periods="slow")
@@ -221,7 +218,7 @@ def figure_2(h5f=None):
     # ax.set_ylim(1e-4, 1e-1)
 
     ax = plot_disease_dist_infectious_encounters(
-        h5f, k="k_inf", periods="slow", set_size=False
+        k="k_inf", periods="slow", set_size=False
     )
     ax.get_figure().tight_layout()
     ax.set_ylim(1e-4, 1e-1)
@@ -233,43 +230,32 @@ def figure_2(h5f=None):
     _set_size(ax, 5.2 * cm, 2.1 * cm)
 
 
-def figure_3(h5f=None):
+def figure_3():
     log.info("Figure on conditional enc rate and pace of spread R_0")
 
-    if h5f is None:
-        h5f = h5.recursive_load(
-            "./out/results_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
-        )
-
-    plot_conditional_rate(h5f, which=["data"])
+    plot_conditional_rate(which=["data"])
 
     plot_disease_mean_number_of_infectious_encounter_cutplane(
-        h5f, ax=None, how="absolute", t_inf=3
+        ax=None, how="absolute", t_inf=3
     )
     plot_disease_mean_number_of_infectious_encounter_2d(
-        h5f, which="data", how="relative", control_plot=False
+        which="data", how="relative", control_plot=False
     )
 
-    # daily new cases
-    r_h5f = h5.recursive_load(
-        "./out_mf/mean_field_samples_Copenhagen_filtered_15min.h5",
-        dtype=bdict,
-        keepdim=True,
-    )
-    ax = plot_r(r_h5f)
+    ax = plot_case_numbers()
     _set_size(ax, 3.3 * cm, 2.5 * cm)
 
     # branching and mean field use different files
     # this one loads hardcoded paths
-    ax = plot_spreading_rate()
+    ax = plot_growth_rate()
     _set_size(ax, 3.3 * cm, 2.5 * cm)
 
 
-def figure_4(h5f=None):
-    if h5f is None:
-        h5f = h5.recursive_load(
-            "./out/results_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
-        )
+def figure_4(create_distirbution_insets = False):
+    log.info("Figure comparing models")
+
+    # plot_etrain_rate(h5f)
+    # plot_dist_inter_encounter_interval(h5f)
 
     with plt.rc_context(
         {
@@ -277,83 +263,55 @@ def figure_4(h5f=None):
             "ytick.labelsize": 6,
         }
     ):
-        for period in ["2_3", "6_3"]:
-            ax = compare_disease_dist_encounters_generative(
-                h5f, process="psn", periods=[period]
-            )
-            ax.set_xlim(-5, 150)
-            ax.set_ylim(1e-4, 1e-1)
-            _set_size(ax, 2.5 * cm, 1 * cm)
-            f = functools.partial(
-                compare_disease_dist_encounters_generative,
-                h5f=h5f,
-                process="psn",
-                periods=[period],
-                set_size=False,
-                annotate=False,
-            )
-            axins = create_inset(
-                plot_func=f,
-                ax=ax,
-                width="40%",
-                height="45%",
-                xlim=(-1.0, 10),
-                ylim=(1.4e-3, 1.4e-1),
-                borderpad=0.0,
-                inset_loc=1,
-                con_loc1=1,
-                con_loc2=4,
-                mark_zorder=-1,
-            )
-            _detick([axins.xaxis, axins.yaxis])
-            if period == "2_3":
-                _detick(ax.xaxis, keep_ticks=True)
-                ax.set_xlabel("")
+        for process in ["psn", "wbl", "tlrd"]:
 
-            ax = compare_disease_dist_encounters_generative(
-                h5f, process="wbl", periods=[period]
+            ax = plot_conditional_rate(
+                which=["data", process],
+                control_plot=True,
             )
-            ax.set_xlim(-5, 150)
-            ax.set_ylim(1e-4, 1e-1)
-            _set_size(ax, 2.5 * cm, 1 * cm)
-            f = functools.partial(
-                compare_disease_dist_encounters_generative,
-                h5f=h5f,
-                process="wbl",
-                periods=[period],
-                set_size=False,
-                annotate=False,
-            )
-            axins = create_inset(
-                plot_func=f,
-                ax=ax,
-                width="35%",
-                height="40%",
-                xlim=(-1.0, 10),
-                ylim=(0.8e-2, 1e-1),
-                borderpad=0.25,
-                inset_loc=3,
-                con_loc1=1,
-                con_loc2=3,
-                mark_zorder=-1,
-            )
-            _detick([axins.xaxis, axins.yaxis])
-            if period == "2_3":
-                _detick(ax.xaxis, keep_ticks=True)
-                ax.set_xlabel("")
+            _set_size(ax, 2.8 * cm, 1.8 * cm)
 
-        ax = plot_conditional_rate(
-            h5f,
-            which=["data", "poisson_inhomogeneous_weighted_trains"],
-            control_plot=True,
-        )
-        _set_size(ax, 2.8 * cm, 1.8 * cm)
-        ax = plot_conditional_rate(
-            h5f,
-            which=["data", "weibul_renewal_process_weighted_trains"],
-            control_plot=True,
-        )
-        _set_size(ax, 2.8 * cm, 1.8 * cm)
+            # 2d plots
+            ax = plot_disease_mean_number_of_infectious_encounter_2d(
+                which=process, how="relative", control_plot=True
+            )
+            # todo @ps: custom ticks
+
+            # for distributions, show different latent periods
+            for period in ["2_3", "6_3"]:
+
+                ax = compare_disease_dist_encounters_generative(
+                    which=["data", process], periods=[period]
+                )
+                ax.set_xlim(-5, 150)
+                ax.set_ylim(1e-4, 1e-1)
+                _set_size(ax, 2.5 * cm, 1 * cm)
+                f = functools.partial(
+                    compare_disease_dist_encounters_generative,
+                    which=["data", process],
+                    periods=[period],
+                    set_size=False,
+                    annotate=False,
+                )
+                if create_distirbution_insets:
+                    axins = create_inset(
+                        plot_func=f,
+                        ax=ax,
+                        width="40%",
+                        height="45%",
+                        xlim=(-1.0, 10),
+                        ylim=(1.4e-3, 1.4e-1),
+                        borderpad=0.0,
+                        inset_loc=1,
+                        con_loc1=1,
+                        con_loc2=4,
+                        mark_zorder=-1,
+                    )
+                    _detick([axins.xaxis, axins.yaxis])
+                    if period == "2_3":
+                        _detick(ax.xaxis, keep_ticks=True)
+                        ax.set_xlabel("")
+
 
 
 def create_inset(
@@ -399,24 +357,6 @@ def create_inset(
     )
 
     return axins
-
-
-# this needs a different input file than the others
-# todo, paths are still hardcoded
-def figure_5(h5f):
-    # this guy loads other files from disk, too
-    plot_r0(h5f)
-
-    # this guy loads only other files from disk
-    plot_r4()
-
-    # this guy needs a completely different file
-    r_h5f = h5.recursive_load(
-        "./out_mf/mean_field_samples_Copenhagen_filtered_15min.h5",
-        dtype=bdict,
-        keepdim=True,
-    )
-    plot_r(r_h5f)
 
 
 # part of figure 2 in v1
@@ -632,6 +572,8 @@ def figure_sm_rate_and_iei_complete(h5f):
 # decorator for lower level plot functions to continue if subplot fails
 def warntry(func):
     def wrapper(*args, **kwargs):
+        if debug:
+            return func(*args, **kwargs)
         try:
             return func(*args, **kwargs)
         except Exception as e:
@@ -642,7 +584,12 @@ def warntry(func):
 
 # Fig 1b
 @warntry
-def plot_etrain_rasters(h5f):
+def plot_etrain_rasters(h5f=None):
+
+    if h5f is None:
+        h5f = h5.recursive_load(
+            "./out/results_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
+        )
 
     fig, ax = plt.subplots()
     ax.set_rasterization_zorder(0)
@@ -1320,7 +1267,7 @@ def plot_etrain_raster_example(h5f, ax=None):
 # Fig 2e
 @warntry
 def plot_disease_mean_number_of_infectious_encounter_cutplane(
-    h5f,
+    h5f=None,
     ax=None,
     how="absolute",
     t_inf=3,
@@ -1330,6 +1277,15 @@ def plot_disease_mean_number_of_infectious_encounter_cutplane(
     how : str, "relative" or "absolute"
     t_inf : for which infectious period [in days] to draw the cutplane
     """
+
+    if h5f is None:
+        h5f = h5.recursive_load(
+            "./out/results_Copenhagen_filtered_15min.h5",
+            dtype=bdict,
+            keepdim=True,
+            skip=["trains"],
+        )
+
     if ax is None:
         fig, ax = plt.subplots(figsize=(6 * cm, 2.5 * cm))
     else:
@@ -1378,7 +1334,7 @@ def plot_disease_mean_number_of_infectious_encounter_cutplane(
 # Fig 2d, Fig 3b, SM
 @warntry
 def plot_conditional_rate(
-    h5f, ax=None, which=["data"], control_plot=False, kwargs_overwrite=None
+    ax=None, which=["data"], control_plot=False, kwargs_overwrite=None
 ):
     """
     plot the conditional encounter rate from data or as obtained for generative processes
@@ -1393,6 +1349,7 @@ def plot_conditional_rate(
         passed to the plotting for lines
 
     """
+
     if ax is None:
         fig, ax = plt.subplots()
     else:
@@ -1406,84 +1363,102 @@ def plot_conditional_rate(
     e_step = 25
 
     # reuse for inset
-    def local_plot(ax):
-        for wdx, w in enumerate(which):
-            log.info(f"conditional encounter rate for {w}")
-            if "data" in w:
-                data = h5f[f"{w}/encounter_train/conditional_encounter_rate"]
-            else:
-                data = h5f[f"sample/{w}/conditional_encounter_rate"]
+    for wdx, w in enumerate(which):
+        log.info(f"conditional encounter rate for {w}")
+        if w == "data":
+            # data = h5f[f"{w}/encounter_train/conditional_encounter_rate"]
+            data = h5.load(
+                "./out/results_Copenhagen_filtered_15min.h5",
+                "data/encounter_train/conditional_encounter_rate",
+            )
+        elif w == "psn":
+            data = h5.load(
+                "./out/surrogate_inhomogeneous_poisson_weighted_Copenhagen_filtered_15min.h5",
+                "conditional_encounter_rate",
+            )
+        elif w == "wbl":
+            data = h5.load(
+                "./out/surrogate_weibull_weighted_Copenhagen_filtered_15min.h5",
+                "conditional_encounter_rate",
+            )
+        elif w == "tlrd":
+            data = h5.load(
+                "./out/surrogate_tailored_Copenhagen_filtered_15min.h5",
+                "conditional_encounter_rate",
+            )
+        else:
+            # loaded array
+            data = np.copy(w)
+            w = f"custom {wdx}"
 
-            r_time = data[0, :] * norm_rate
-            r_full = data[1, :] / norm_rate
-            try:
-                r_errs = data[1, :] / norm_rate
-            except:
-                pass
+        r_time = data[0, :] * norm_rate
+        r_full = data[1, :] / norm_rate
+        try:
+            r_errs = data[1, :] / norm_rate
+        except:
+            pass
 
-            if kwargs_overwrite is None:
-                kwargs = dict(alpha=1, label=w, zorder=0, color=f"C{wdx}")
-            else:
-                kwargs = kwargs_overwrite
+        if kwargs_overwrite is None:
+            kwargs = dict(alpha=1, label=w, zorder=0, color=f"C{wdx}")
+        else:
+            kwargs = kwargs_overwrite
 
-            if kwargs_overwrite is not None:
-                pass
-            elif w == "data":
-                kwargs["zorder"] = 2
-                kwargs["color"] = clrs.cond_enc_rate
-                if control_plot:
-                    kwargs["alpha"] = 1.0
-                    kwargs["lw"] = 0.75
-            elif w == "data_surrogate_randomize_per_train":
-                kwargs["color"] = clrs.disease_psn_norm
-            elif control_plot:
-                kwargs["zorder"] = 1
-
-            # weighted -> thicker, more saturated
-            if kwargs_overwrite is not None:
-                pass
-            elif w == "weibul_renewal_process":
-                kwargs["color"] = _alpha_to_solid_on_bg(clrs.weibull, 0.5)
+        if kwargs_overwrite is not None:
+            pass
+        elif w == "data":
+            kwargs["zorder"] = 2
+            kwargs["color"] = clrs.cond_enc_rate
+            if control_plot:
+                kwargs["alpha"] = 1.0
                 kwargs["lw"] = 0.75
-            elif w == "weibul_renewal_process_weighted_trains":
-                kwargs["color"] = clrs.weibull
-                kwargs["lw"] = 1
+        elif w == "data_surrogate_randomize_per_train":
+            kwargs["color"] = clrs.disease_psn_norm
+        elif control_plot:
+            kwargs["zorder"] = 1
 
-            elif w == "poisson_inhomogeneous":
-                kwargs["color"] = _alpha_to_solid_on_bg(clrs.medium_psn, 0.4)
-                kwargs["lw"] = 0.75
-                kwargs["zorder"] = 4
-            elif w == "poisson_inhomogeneous_weighted_trains":
-                kwargs["color"] = clrs.medium_psn
-                kwargs["lw"] = 1
+        # weighted -> thicker, more saturated
+        if kwargs_overwrite is not None:
+            pass
+        elif w == "weibul_renewal_process":
+            kwargs["color"] = _alpha_to_solid_on_bg(clrs.weibull, 0.5)
+            kwargs["lw"] = 0.75
+        elif w == "weibul_renewal_process_weighted_trains":
+            kwargs["color"] = clrs.weibull
+            kwargs["lw"] = 1
 
-            ax.plot(r_time, r_full, **kwargs)
+        elif w == "poisson_inhomogeneous":
+            kwargs["color"] = _alpha_to_solid_on_bg(clrs.medium_psn, 0.4)
+            kwargs["lw"] = 0.75
+            kwargs["zorder"] = 4
+        elif w == "poisson_inhomogeneous_weighted_trains":
+            kwargs["color"] = clrs.medium_psn
+            kwargs["lw"] = 1
 
-            if w == "data" and not control_plot and kwargs_overwrite is None:
-                # shaded regions for examples: 2,3 and 6,3
-                idx = np.where((r_time > 6) & (r_time < 9))
-                ax.fill_between(
-                    r_time[idx],
-                    y1=np.zeros(len(idx)),
-                    y2=r_full[idx],
-                    color="#faad7c",
-                    alpha=0.4,
-                    lw=0,
-                    zorder=1,
-                )
+        ax.plot(r_time, r_full, **kwargs)
 
-                idx = np.where((r_time > 2) & (r_time < 5))
-                ax.fill_between(
-                    r_time[idx],
-                    y1=np.zeros(len(idx)),
-                    y2=r_full[idx],
-                    color="#49737a",
-                    alpha=0.3,
-                    lw=0,
-                    zorder=1,
-                )
+        if w == "data" and not control_plot and kwargs_overwrite is None:
+            # shaded regions for examples: 2,3 and 6,3
+            idx = np.where((r_time > 6) & (r_time < 9))
+            ax.fill_between(
+                r_time[idx],
+                y1=np.zeros(len(idx)),
+                y2=r_full[idx],
+                color="#faad7c",
+                alpha=0.4,
+                lw=0,
+                zorder=1,
+            )
 
-    local_plot(ax)
+            idx = np.where((r_time > 2) & (r_time < 5))
+            ax.fill_between(
+                r_time[idx],
+                y1=np.zeros(len(idx)),
+                y2=r_full[idx],
+                color="#49737a",
+                alpha=0.3,
+                lw=0,
+                zorder=1,
+            )
 
     ax.set_xlim(-0.5, 10.5)
     ax.set_ylim(0, 60)
@@ -1520,7 +1495,7 @@ def plot_conditional_rate(
 # Fig 2f, Fig 3a, SM
 @warntry
 def plot_disease_mean_number_of_infectious_encounter_2d(
-    h5f, ax=None, which="data", how="relative", control_plot=False
+    ax=None, which="data", how="relative", control_plot=False
 ):
     """
     # Parameters
@@ -1530,12 +1505,6 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
     """
 
     assert how in ["relative", "absolute"]
-    samples = []
-    try:
-        samples = list(h5f["sample"].keys())
-    except Exception as e:
-        log.warning(e)
-    assert which in ["data"] + samples, f"did you sample {which}?"
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -1543,11 +1512,24 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
         fig = ax.get_figure()
     ax.set_rasterization_zorder(0)
 
+    dset = "disease/delta/scan_mean_number_infectious_encounter"
     if which == "data":
-        data = h5f["disease/delta/scan_mean_number_infectious_encounter"]
-    else:
-        # which == "poisson_homogeneous_weighted_train"
-        data = h5f[f"sample/{which}/disease/delta/scan_mean_number_infectious_encounter"]
+        file = "./out/results_Copenhagen_filtered_15min.h5"
+    elif which == "psn":
+        file = "./out/surrogate_inhomogeneous_poisson_weighted_Copenhagen_filtered_15min.h5"
+    elif which == "wbl":
+        file = "./out/surrogate_weibull_weighted_Copenhagen_filtered_15min_.h5"
+    elif which == "tlrd":
+        file = "./out/surrogate_tailored_Copenhagen_filtered_15min.h5"
+
+    h5f = h5.recursive_load(
+        file,
+        dtype=bdict,
+        keepdim=True,
+        skip=["trains"],
+    )
+    # pauls helper recursive_load doesnt support loading sub directories yet
+    data = h5f[dset]
 
     range_inf = data["range_infectious"][:]
     range_lat = data["range_latent"][:]
@@ -1654,11 +1636,15 @@ def plot_survival_probability(h5f=None, ax=None, apply_formatting=True, which="a
 
     if h5f is None and which == "analytic":
         h5f = h5.recursive_load(
-            "./out/analytic_survival_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
+            "./out/analytic_survival_Copenhagen_filtered_15min.h5",
+            dtype=bdict,
+            keepdim=True,
         )
     elif h5f is None and which == "branching_process":
         h5f = h5.recursive_load(
-            "./out/branching_process_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True
+            "./out/branching_process_Copenhagen_filtered_15min.h5",
+            dtype=bdict,
+            keepdim=True,
         )
 
     if which == "analytic":
@@ -1938,12 +1924,20 @@ def plot_disease_viral_load_examples():
 # Fig 4c
 @warntry
 def plot_disease_dist_infectious_encounters(
-    h5f, ax=None, k="k_inf", periods="slow", set_size=True, annotate=True
+    h5f=None, ax=None, k="k_inf", periods="slow", set_size=True, annotate=True
 ):
 
     assert k in ["k_inf", "k_10.0", "k_1.0"]
     assert periods in ["fast", "slow"]
     control = None  # onset_train or sth?
+
+    if h5f is None:
+        h5f = h5.recursive_load(
+            "./out/results_Copenhagen_filtered_15min.h5",
+            dtype=bdict,
+            keepdim=True,
+            skip=["trains"],
+        )
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -2057,9 +2051,8 @@ def plot_disease_dist_infectious_encounters(
 
 
 def compare_disease_dist_encounters_generative(
-    h5f,
     ax=None,
-    process="psn",
+    which=["data"],
     periods=["2_3"],
     set_size=True,
     annotate=True,
@@ -2069,14 +2062,12 @@ def compare_disease_dist_encounters_generative(
     process
 
     # Parameters
-    process : "psn" or "wbl" corresponding to datasets
-        "sample/poisson_inhomogeneous_weighted_trains/"
-        "sample/weibul_renewal_process_weighted_trains/"
+    process : "psn", "wbl" or "tlrd" corresponding to files for:
+
 
     """
 
-    assert process in ["psn", "wbl"], "`process` needs to be 'psn' or 'wbl'"
-    control = None  # onset_train or sth?
+    control = None  # for the si, we have other datasets that e.g. exclude some trains
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -2103,51 +2094,63 @@ def compare_disease_dist_encounters_generative(
     # original data is stored in /disease
     # poisson is stored in /sample/psn_inh.../disease
 
-    if process == "wbl":
-        path_for_process = "sample/weibul_renewal_process_weighted_trains/"
-    elif process == "psn":
-        path_for_process = "sample/poisson_inhomogeneous_weighted_trains/"
+    # iterate over all periods and chosen colors
+    # periods are saved as dset path
+    for period in periods:
+        if period == "2_3" or period == "1_0.5":
+            period_color = clrs.n_low  # blue
+        elif period == "6_3" or period == "1.5_0.5":
+            period_color = clrs.n_high  # red
 
-    for path_prefix in ["", path_for_process]:
+        dset = f"disease/delta_{period}"
 
-        # iterate over all periods and chosen colors
-        for period in periods:
-            if period == "2_3" or period == "1_0.5":
-                color = clrs.n_low  # blue
-            elif period == "6_3" or period == "1.5_0.5":
-                color = clrs.n_high  # red
+        if control is not None:
+            dset += f"/control_random_disease_{control}"
+        dset += "/distribution_infectious_encounter"
 
-            path = f"{path_prefix}disease/delta_{period}"
-
-            if control is not None:
-                path += f"/control_random_disease_{control}"
-            path += "/distribution_infectious_encounter"
+        # iterate over models/data. different files
+        for wdx, w in enumerate(which):
 
             try:
-                assert path in h5f.keypaths()
-                data = h5f[path]
+                if w == "data":
+                    file = "./out/results_Copenhagen_filtered_15min.h5"
+                elif w == "psn":
+                    file = "./out/surrogate_inhomogeneous_poisson_weighted_Copenhagen_filtered_15min.h5"
+                elif w == "wbl":
+                    file = "./out/surrogate_weibull_weighted_Copenhagen_filtered_15min_.h5"
+                elif w == "tlrd":
+                    file = "./out/surrogate_tailored_Copenhagen_filtered_15min.h5"
+
+                # all the above
+                if isinstance(w, str):
+                    data = h5.load(file, dset, raise_ex=True)
+                else:
+                    # loaded array was passed, we might reuse w later for labels
+                    data = np.copy(w)
+                    w = f"custom {wdx}"
 
                 zorder = 2
-                if "_surrogate" in period:
+                if "surrogate_" in file:
                     zorder = 0
 
                 kwargs = dict()
-                if path_prefix == "":
+                if w == "data":
                     # color="gray"
                     # kwargs["ls"] = "-"
                     # kwargs["alpha"] = 0.3
-                    color = _alpha_to_solid_on_bg(color, 0.3)
+                    color = _alpha_to_solid_on_bg(period_color, 0.3)
                     kwargs["label"] = f"data {period}"
                 else:
                     # kwargs["ls"] = ":"
                     # kwargs["alpha"] = 0.5
+                    color = _alpha_to_solid_on_bg(period_color, 1.0)
                     kwargs["lw"] = 1.2
-                    kwargs["label"] = f"{process} {period}"
+                    kwargs["label"] = f"{w} {period}"
 
                 ref = local_plot(data, color, zorder, **kwargs)
                 log.info(f"{k}\t{period}:\t{ref:.2f}")
             except Exception as e:
-                log.warning(f"Failed to plot {path}")
+                log.warning(f"Failed to plot {file} {dset}")
                 raise (e)
 
     ax.set_xlim(-5, 150)
@@ -2162,10 +2165,14 @@ def compare_disease_dist_encounters_generative(
     ax.xaxis.set_major_locator(MultipleLocator(50))
     ax.xaxis.set_minor_locator(MultipleLocator(10))
 
-    if process == "wbl":
+    if "wbl" in w:
         title = f"Weibull renewal"
-    elif process == "psn":
+    elif "psn" in w:
         title = f"Inh. Poisson"
+    elif "tlrd" in w:
+        title = f"Tailored Weibull"
+    else:
+        title = "custom"
 
     if control is not None:
         title += f" {control}"
@@ -2406,13 +2413,20 @@ def plot_controls_means_infectious_encounters(
 # Fig 5
 # needs different h5f, not part of main file yet. usually in 'out_mf'
 @warntry
-def plot_r(
-    h5f,
+def plot_case_numbers(
+    h5f=None,
     which=["latent_1.00", "latent_2.00", "latent_6.00"],
     average_over_rep=True,
     apply_formatting=True,
 ):
     fig, ax = plt.subplots()
+
+    if h5f is None:
+        h5f = h5.recursive_load(
+            "./out/sample_continuous_branching_Copenhagen_filtered_15min.h5",
+            dtype=bdict,
+            keepdim=True,
+        )
 
     def plot_cases(cases, color, **kwargs):
         num_rep = len(cases.keys())
@@ -2475,15 +2489,15 @@ def plot_r(
 
 
 # essentially, this is a carbon copy of `plot_r4`
-def plot_spreading_rate(h5f):
+def plot_growth_rate():
     fig, ax = plt.subplots()
 
     rand = np.loadtxt(
-        "./out_mf/analysis_mean-field_measurements_randomized_per_train.dat",
+        "./out/analysis_continuous_branching_measurements_randomized_per_train.dat",
         unpack=True,
     )
     data = np.loadtxt(
-        "./out_mf/analysis_mean-field_measurements.dat",
+        "./out/analysis_continuous_branching_measurements.dat",
         unpack=True,
     )
     # time_x = rand[0, :]
@@ -2520,8 +2534,9 @@ def plot_spreading_rate(h5f):
         )
         lam_res[idx] = res.x[0]
 
-
-    ax.plot(time_x, lam_res, lw=1, label="_analytic_solution", color=clrs.disease_psn_norm)
+    ax.plot(
+        time_x, lam_res, lw=1, label="_analytic_solution", color=clrs.disease_psn_norm
+    )
 
     ax.errorbar(
         time_x[:],
