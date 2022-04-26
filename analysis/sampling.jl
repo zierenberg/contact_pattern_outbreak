@@ -183,7 +183,6 @@ function sample_encounter_trains_weibull_renewal(
         # rate*weight = weight/mean = weight /scale *Gamma(1+1/shape) = Gamma(1+1/scale)/scale_new -> scale_new = scale/weight
         encounter_times = [renewal_process(Weibull(shape, scale/weights[mod1(i,end)]), time_start, interval_record, rng) for i in 1:num_sample_trains];
     end
-        encounter_times = [renewal_process(Weibull(shape, scale), time_start, interval_record, rng) for i in 1:num_sample_trains];
     return encounter_trains(encounter_times, collect(1:num_sample_trains), interval_record[2]-interval_record[1], timestep);
 end
 
