@@ -1,3 +1,10 @@
+using Pkg;
+path_project=join(split(@__DIR__, "/")[1:end-1],"/")
+println(path_project)
+Pkg.activate(path_project)
+Pkg.instantiate()
+
+
 include("data_analysis.jl")
 include("data_driven_models.jl")
 

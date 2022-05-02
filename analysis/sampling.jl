@@ -190,6 +190,9 @@ end
 
 """
     sample_encounter_trains_tailored(args_weibull, num_sample_trains, time_start, interval_record, rng, [weights=missing], [timestep=0]))
+
+sample encounter trains with ``thinned'' Weibull renewal processes of
+heterogeneous rates tailored to reproduce contact statistics from data.
 """
 function sample_encounter_trains_tailored(
         rng::AbstractRNG,
