@@ -8,31 +8,6 @@ https://figshare.com/articles/dataset/The_Copenhagen_Networks_Study_interaction_
 Sociopatterns:
 http://www.sociopatterns.org/datasets/co-location-data-for-several-sociopatterns-data-sets/
 
-# Installation
-
-Install required packages in a julia shell
-
-```julia
-import Pkg;
-Pkg.add.([
-    "DataStructures",
-    "DelimitedFiles",
-    "Distributions",
-    "HDF5",
-    "IterTools",
-    "LinearAlgebra",
-    "LsqFit",
-    "Printf",
-    "ProgressMeter",
-    "Random",
-    "Roots",
-    "SpecialFunctions",
-    "Statistics",
-    "StatsBase",
-    "StatsFuns",
-]);
-```
-
 # Prepare
 Go to your directory
 
@@ -54,54 +29,38 @@ mkdir ./out/
 mkdir ./out_mf/
 ```
 
-Start julia
-```bash
-~/bin/julia-1.6.2/bin/julia
-```
+
+
+
 
 # Running the analysis
-```julia
-include("analysis/data_analysis.jl")
+Make sure you installed [julia](https://julialang.org/downloads/).
 
-# set this to `true` to skip error estimates, as they take most of the time.
+Start a julia REPL.
+
+```julia
+# Including run.jl will install required packages and provides easy acesse to functions to reproduce content of paper.
+include("analysis/run.jl")
+
+# To reproduce complete content for main paper run
+reproduce_paper()
+
+# For a more specific reproduction of individual content, follow the steps in reproduce_paper(). 
+# We here provide an example for the data analysis (takes around ~6h)
+
+# Set this to `true` to skip error estimates, as they take most of the time:
 skip_jackknife = false
 
-# main analysis
-# takes around ~6h
-# reduce level of details to be faster but skip some analysis
+# You can reduce level of details to be faster but skip some analysis.
 analyse_all(Copenhagen(), path_out = "./out/", level_of_details=3)
 
-#  filter out participants that had no rssi signal on both first and last day of study
+# You can filter out participants that had no rssi signal on both first and last day of study
 analyse_all(Copenhagen(), path_out = "./out/", level_of_details=3,
     filter_out_incomplete=false)
 
-# for InVS15
+# Repeat analysis for another dataset (e.g. InVS15)
 analyse_all(InVS15(), path_out = "./out/", level_of_details=3)
 ```
-
-
-# Epidemic spread in mean-field model
-```julia
-include("analysis/data_driven_models.jl")
-
-# create the data from mean field model
-# takes around ~18h
-sample_mean_field_for_effective_R(path_out = "./out_mf")
-
-# analyse from measurements
-analyse_effective_R(
-    "./out_mf/mean_field_samples_Copenhagen_filtered_15min.h5",
-    path_out = "./out_mf",
-    dsetname = "measurements")
-
-# analyse from surrogates
-analyse_effective_R(
-    "./out_mf/mean_field_samples_Copenhagen_filtered_15min.h5",
-    path_out = "./out_mf",
-    dsetname = "measurements_randomized_per_train")
-
-```
-
 
 # Plotting
 
