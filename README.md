@@ -36,7 +36,11 @@ mkdir ./out_mf/
 # Running the analysis
 Make sure you installed [julia](https://julialang.org/downloads/).
 
-Start a julia REPL.
+Start a julia REPL in the project folder
+
+```bash
+cd /path_to_cloned_directory
+```
 
 ```julia
 # Including run.jl will install required packages and provides easy acesse to functions to reproduce content of paper.
