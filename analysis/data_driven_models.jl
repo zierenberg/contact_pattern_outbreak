@@ -137,11 +137,8 @@ function sample_surrogate_tailored(
                                                  support_crate=support_crate)
 
     println("Analyse disease-related features")
-    #for historical reasons, we save encounters normalized to randomized.
-    seed=1000
-    ref = surrogate_randomize_per_train(ets, seed)
     analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
-                                            samples, ref, filename,
+                                            samples, filename,
                                             @sprintf("%s/disease/delta", root))
     analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
                                                           seconds_from_days(3)),
@@ -206,10 +203,8 @@ function sample_surrogate_inhomogeneous_poisson_weighted(
                                                  support_crate=support_crate)
 
     println("Analyse disease-related features")
-    #for historical reasons, we save encounters normalized to randomized.
-    ref = surrogate_randomize_per_train(ets, seed)
     analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
-                                            samples, ref, filename,
+                                            samples, filename,
                                             @sprintf("%s/disease/delta", root))
     analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
                                                           seconds_from_days(3)),
@@ -269,10 +264,8 @@ function sample_surrogate_inhomogeneous_poisson(
                                                  support_crate=support_crate)
 
     println("Analyse disease-related features")
-    #for historical reasons, we save encounters normalized to randomized.
-    ref = surrogate_randomize_per_train(ets, seed)
     analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
-                                            samples, ref, filename,
+                                            samples, filename,
                                             @sprintf("%s/disease/delta", root))
     analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
                                                           seconds_from_days(3)),
@@ -335,10 +328,8 @@ function sample_surrogate_homogeneous_poisson_weighted(
                                                  support_crate=support_crate)
 
     println("Analyse disease-related features")
-    #for historical reasons, we save encounters normalized to randomized.
-    ref = surrogate_randomize_per_train(ets, seed)
     analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
-                                            samples, ref, filename,
+                                            samples, filename,
                                             @sprintf("%s/disease/delta", root))
     analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
                                                           seconds_from_days(3)),
@@ -399,10 +390,8 @@ function sample_surrogate_homogeneous_poisson(
                                                  support_crate=support_crate)
 
     println("Analyse disease-related features")
-    #for historical reasons, we save encounters normalized to randomized.
-    ref = surrogate_randomize_per_train(ets, seed)
     analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
-                                            samples, ref, filename,
+                                            samples, filename,
                                             @sprintf("%s/disease/delta", root))
     analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
                                                           seconds_from_days(3)),
@@ -470,10 +459,8 @@ function sample_surrogate_weibull_weighted(
                                                  support_crate=support_crate)
 
     println("Analyse disease-related features")
-    #for historical reasons, we save encounters normalized to randomized.
-    ref = surrogate_randomize_per_train(ets, seed)
     analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
-                                            samples, ref, filename,
+                                            samples, filename,
                                             @sprintf("%s/disease/delta", root))
     analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
                                                           seconds_from_days(3)),
@@ -533,10 +520,8 @@ function sample_surrogate_weibull(
                                                  support_crate=support_crate)
 
     println("Analyse disease-related features")
-    #for historical reasons, we save encounters normalized to randomized.
-    ref = surrogate_randomize_per_train(ets, seed)
     analyse_infectious_encounter_scan_delta(range_latent, range_infectious,
-                                            samples, ref, filename,
+                                            samples, filename,
                                             @sprintf("%s/disease/delta", root))
     analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2),
                                                           seconds_from_days(3)),
