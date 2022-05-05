@@ -50,14 +50,14 @@ function analyse_all(
     mkpath(path_out)
     filename_data = @sprintf("%s/data_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
-    filename_rand_trn = @sprintf("%s/surrogate_randomized_per_train_%s_filtered_%dmin.h5",
+    filename_rand = @sprintf("%s/surrogate_randomized_per_train_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
     filename_rand_all = @sprintf("%s/surrogate_randomized_all_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
 
     if filter_out_incomplete
         filename_data = replace(filename_data, ".h5" => "_filterOutIncomplete.h5")
-        filename_rand_trn = replace(filename_rand_trn, ".h5" => "_filterOutIncomplete.h5")
+        filename_rand = replace(filename_rand, ".h5" => "_filterOutIncomplete.h5")
         filename_rand_all = replace(filename_rand_all, ".h5" => "_filterOutIncomplete.h5")
     end
 
@@ -92,14 +92,14 @@ function analyse_all(
     if lod >= 1
         root="/"
         sur = surrogate_randomize_per_train(ets, seed)
-        myh5write(filename_rand_trn,@sprintf("%s/trains/",root), sur)
-        analyse_temporal_features_of_encounter_train(sur, filename_rand_trn, root, support_crate=support_crate)
+        myh5write(filename_rand,@sprintf("%s/trains/",root), sur)
+        analyse_temporal_features_of_encounter_train(sur, filename_rand, root, support_crate=support_crate)
         # disease
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand_trn, @sprintf("%s/disease/delta", root))
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), sur, filename_rand_trn, "/disease/delta_2_3")
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), sur, filename_rand_trn, "/disease/delta_6_3")
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5)), sur, filename_rand_trn, "/disease/delta_1_0.5")
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5)), sur, filename_rand_trn, "/disease/delta_1.5_0.5")
+        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand, @sprintf("%s/disease/delta", root))
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), sur, filename_rand, "/disease/delta_2_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), sur, filename_rand, "/disease/delta_6_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5)), sur, filename_rand, "/disease/delta_1_0.5")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5)), sur, filename_rand, "/disease/delta_1.5_0.5")
     end
 
     if lod >= 2
