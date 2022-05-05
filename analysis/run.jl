@@ -34,4 +34,7 @@ function reproduce_paper()
     # data-driven branching processes
     analytic_survival_probability()
     sample_continuous_time_branching()
+
+    # controls
+    analyse_all(filter_out_incomplete=true, level_of_details=1)
 end

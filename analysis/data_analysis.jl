@@ -48,10 +48,17 @@ function analyse_all(
     )
     lod = level_of_details
     mkpath(path_out)
+    filename_data = @sprintf("%s/data_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration/60)
+    filename_rand_trn = @sprintf("%s/surrogate_randomized_per_train_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration/60)
+    filename_rand_all = @sprintf("%s/surrogate_randomized_all_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration/60)
+
     if filter_out_incomplete
-        filename = @sprintf("%s/results_%s_filtered_%dmin_filterOutIncomplete.h5", path_out, label(experiment), minimum_duration/60)
-    else
-        filename = @sprintf("%s/results_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
+        filename_data = replace(filename_data, ".h5" => "_filterOutIncomplete.h5")
+        filename_rand_trn = replace(filename_rand_trn, ".h5" => "_filterOutIncomplete.h5")
+        filename_rand_all = replace(filename_rand_all, ".h5" => "_filterOutIncomplete.h5")
     end
 
     ###########################################################################
@@ -59,7 +66,7 @@ function analyse_all(
     # experiment=Copenhagen(); minimum_duration=15*60; path_dat="./dat";filter_out_incomplete=false;
     cas, ets, list_contacts = load_processed_data(experiment, minimum_duration, path_dat, filter_out_incomplete=filter_out_incomplete);
     # write encounter train
-    lod >= 1 && myh5write(filename,"/data/trains/",ets)
+    lod >= 1 && myh5write(filename_data,"/trains/",ets)
 
     if experiment == InVS15()
         support_crate=0:300:seconds_from_days(7*1.5)
@@ -70,90 +77,89 @@ function analyse_all(
     ###########################################################################
     # temporal features
 
-    lod >= 2 && analyse_temporal_features_of_contact_activity(cas, filename, "/data/contact_activity")
-    lod >= 1 && analyse_contact_duration(list_contacts, experiment, filename, "/data/contacts")
-    lod >= 1 && analyse_temporal_features_of_encounter_train(ets, filename, "/data/encounter_train", support_crate=support_crate)
+    lod >= 1 && analyse_temporal_features_of_encounter_train(ets, filename_data, "/", support_crate=support_crate)
+    lod >= 2 && analyse_contact_duration(list_contacts, experiment, filename_data, "/extra/contacts")
+    lod >= 2 && analyse_temporal_features_of_contact_activity(cas, filename_data, "/extra/contact_activity")
+
 
     ###########################################################################
-    # surrogate data and sampling
+    # surrogate data
+
+    if lod >= 1
+        root="/"
+        sur = surrogate_randomize_per_train(ets, seed)
+        myh5write(filename_rand_trn,@sprintf("%s/trains/",root), sur)
+        analyse_temporal_features_of_encounter_train(sur, filename_rand_trn, root, support_crate=support_crate)
+        # disease
+        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand_trn, @sprintf("%s/disease/delta", root))
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), sur, filename_rand_trn, "/disease/delta_2_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), sur, filename_rand_trn, "/disease/delta_6_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5)), sur, filename_rand_trn, "/disease/delta_1_0.5")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5)), sur, filename_rand_trn, "/disease/delta_1.5_0.5")
+    end
+
+    if lod >= 2
+        # surrogate version 2, where randimization is not constrained within trains
+        root="/"
+        sur_rand_all = surrogate_randomize_all(ets, seed)
+        myh5write(filename_rand_all,@sprintf("%s/trains/",root), sur_rand_all)
+        analyse_temporal_features_of_encounter_train(sur_rand_all, filename_rand_all, root, support_crate=support_crate)
+        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur_rand_all, filename_rand_all, @sprintf("%s/disease/delta", root))
+    end
 
 
     # disease periods
     range_latent = default_range_latent
     range_infectious = default_range_infectious
 
-    if lod >= 1
-        root="/data_surrogate_randomize_per_train"
-        sur_rand_train = surrogate_randomize_per_train(ets, seed)
-        ref = sur_rand_train
-        myh5write(filename,@sprintf("%s/trains/",root), sur_rand_train)
-        analyse_temporal_features_of_encounter_train(sur_rand_train, filename, @sprintf("%s/encounter_train",root), support_crate=support_crate)
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur_rand_train, ref, filename, @sprintf("%s/disease/delta", root))
-    end
-
-    if lod >= 2
-        # surrogate version 2
-        root="/data_surrogate_randomize_all"
-        sur_rand_all = surrogate_randomize_all(ets, seed)
-        myh5write(filename,@sprintf("%s/trains/",root), sur_rand_all)
-        analyse_temporal_features_of_encounter_train(sur_rand_all, filename, @sprintf("%s/encounter_train",root), support_crate=support_crate)
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur_rand_all, ref, filename, @sprintf("%s/disease/delta", root))
-    end
-
 
     ###########################################################################
     # disease spread
+    # only for data `ets` and surrogate version 1 `sur`
     if lod >= 1
-        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, ets, ref, filename, "/disease/delta")
+        analyse_infectious_encounter_scan_delta(range_latent, range_infectious, ets, filename_data, "/disease/delta")
         #details
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), ets, filename, "/disease/delta_2_3")
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), ets, filename, "/disease/delta_6_3")
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), ref, filename, "/disease/delta_2_3_surrogate")
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), ref, filename, "/disease/delta_6_3_surrogate")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), ets, filename_data, "/disease/delta_2_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), ets, filename_data, "/disease/delta_6_3")
         # details at different points
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5)), ets, filename, "/disease/delta_1_0.5")
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5)), ets, filename, "/disease/delta_1.5_0.5")
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5)), ref, filename, "/disease/delta_1_0.5_surrogate")
-        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5)), ref, filename, "/disease/delta_1.5_0.5_surrogate")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5)), ets, filename_data, "/disease/delta_1_0.5")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5)), ets, filename_data, "/disease/delta_1.5_0.5")
+
+        #gamma - scan
+        range_k = 10 .^ collect(0:0.2:5)
+        analyse_infectious_encounter_scan_gamma((2,3), range_k, ets, filename_data, "/disease/gamma_2_3")
+        analyse_infectious_encounter_scan_gamma((6,3), range_k, ets, filename_data, "/disease/gamma_6_3")
+        analyse_infectious_encounter_scan_gamma((2,3), range_k, sur, filename_rand, "/disease/gamma_2_3")
+        analyse_infectious_encounter_scan_gamma((6,3), range_k, sur, filename_rand, "/disease/gamma_6_3")
+        #gamma - detail
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(2), seconds_from_days(3), 1), ets, filename_data, "/disease/gamma_2_3/k_1.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(6), seconds_from_days(3), 1), ets, filename_data, "/disease/gamma_6_3/k_1.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(2), seconds_from_days(3), 10), ets, filename_data, "/disease/gamma_2_3/k_10.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(6), seconds_from_days(3), 10), ets, filename_data, "/disease/gamma_6_3/k_10.0")
+        # gamma - detail, surrogate
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(2), seconds_from_days(3), 1), sur, filename_rand, "/disease/gamma_2_3/k_1.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(6), seconds_from_days(3), 1), sur, filename_rand, "/disease/gamma_6_3/k_1.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(2), seconds_from_days(3), 10), sur, filename_rand, "/disease/gamma_2_3/k_10.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(6), seconds_from_days(3), 10), sur, filename_rand, "/disease/gamma_6_3/k_10.0")
+
+        #gamma - scan, less realistic points
+        range_k = 10 .^ collect(0:0.2:5)
+        analyse_infectious_encounter_scan_gamma((1,0.5), range_k, ets, filename_data, "/disease/gamma_1_0.5")
+        analyse_infectious_encounter_scan_gamma((1.5,0.5), range_k, ets, filename_data, "/disease/gamma_1.5_0.5")
+        analyse_infectious_encounter_scan_gamma((1,0.5), range_k, sur, filename_rand, "/disease/gamma_1_0.5")
+        analyse_infectious_encounter_scan_gamma((1.5,0.5), range_k, sur, filename_rand, "/disease/gamma_1.5_0.5")
+        #gamma - detail
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5), 1), ets, filename_data, "/disease/gamma_1_0.5/k_1.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 1), ets, filename_data, "/disease/gamma_1.5_0.5/k_1.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5), 10), ets, filename_data, "/disease/gamma_1_0.5/k_10.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 10), ets, filename_data, "/disease/gamma_1.5_0.5/k_10.0")
+        # gamma - detail, surrogate
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5), 1), sur, filename_rand, "/disease/gamma_1_0.5/k_1.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 1), sur, filename_rand, "/disease/gamma_1.5_0.5/k_1.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5), 10), sur, filename_rand, "/disease/gamma_1_0.5/k_10.0")
+        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 10), sur, filename_rand, "/disease/gamma_1.5_0.5/k_10.0")
     end
 
-    #gamma - scan
-    if lod >= 1
-        range_k = 10 .^ collect(0:0.2:5)
-        analyse_infectious_encounter_scan_gamma((2,3), range_k, ets, filename, "/disease/gamma_2_3")
-        analyse_infectious_encounter_scan_gamma((6,3), range_k, ets, filename, "/disease/gamma_6_3")
-        analyse_infectious_encounter_scan_gamma((2,3), range_k, ref, filename, "/disease/gamma_2_3_surrogate")
-        analyse_infectious_encounter_scan_gamma((6,3), range_k, ref, filename, "/disease/gamma_6_3_surrogate")
-        #gamma - detail
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(2), seconds_from_days(3), 1), ets, filename, "/disease/gamma_2_3/k_1.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(6), seconds_from_days(3), 1), ets, filename, "/disease/gamma_6_3/k_1.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(2), seconds_from_days(3), 10), ets, filename, "/disease/gamma_2_3/k_10.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(6), seconds_from_days(3), 10), ets, filename, "/disease/gamma_6_3/k_10.0")
-        # gamma - detail, surrogate
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(2), seconds_from_days(3), 1), ref, filename, "/disease/gamma_2_3_surrogate/k_1.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(6), seconds_from_days(3), 1), ref, filename, "/disease/gamma_6_3_surrogate/k_1.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(2), seconds_from_days(3), 10), ref, filename, "/disease/gamma_2_3_surrogate/k_10.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(6), seconds_from_days(3), 10), ref, filename, "/disease/gamma_6_3_surrogate/k_10.0")
-    end
-
-    #gamma - scan, more unrealistic points
-    if lod >= 1
-        range_k = 10 .^ collect(0:0.2:5)
-        analyse_infectious_encounter_scan_gamma((1,0.5), range_k, ets, filename, "/disease/gamma_1_0.5")
-        analyse_infectious_encounter_scan_gamma((1.5,0.5), range_k, ets, filename, "/disease/gamma_1.5_0.5")
-        analyse_infectious_encounter_scan_gamma((1,0.5), range_k, ref, filename, "/disease/gamma_1_0.5_surrogate")
-        analyse_infectious_encounter_scan_gamma((1.5,0.5), range_k, ref, filename, "/disease/gamma_1.5_0.5_surrogate")
-        #gamma - detail
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5), 1), ets, filename, "/disease/gamma_1_0.5/k_1.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 1), ets, filename, "/disease/gamma_1.5_0.5/k_1.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5), 10), ets, filename, "/disease/gamma_1_0.5/k_10.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 10), ets, filename, "/disease/gamma_1.5_0.5/k_10.0")
-        # gamma - detail, surrogate
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5), 1), ref, filename, "/disease/gamma_1_0.5_surrogate/k_1.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 1), ref, filename, "/disease/gamma_1.5_0.5_surrogate/k_1.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5), 10), ref, filename, "/disease/gamma_1_0.5_surrogate/k_10.0")
-        analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 10), ref, filename, "/disease/gamma_1.5_0.5_surrogate/k_10.0")
-    end
 
     return
 end
@@ -523,7 +529,6 @@ function analyse_infectious_encounter_scan_delta(
         range_latent_in_days,
         range_infectious_in_days,
         ets::encounter_trains{I,T1},
-        ref::encounter_trains{I,T2},
         filename::String,
         root::String;
         # optional
@@ -533,18 +538,14 @@ function analyse_infectious_encounter_scan_delta(
 
     # scan
     results  = Array{Float64,2}(undef,length(range_latent_in_days),length(range_infectious_in_days))
-    relative = Array{Float64,2}(undef,length(range_latent_in_days),length(range_infectious_in_days))
     @showprogress 1 for (i, latent) in enumerate(range_latent_in_days)
         for (j, infectious) in enumerate(range_infectious_in_days)
             mean_ets = mean_infectious_encounter(DeltaDiseaseModel(seconds_from_days(latent), seconds_from_days(infectious)), ets)
-            mean_ref = mean_infectious_encounter(DeltaDiseaseModel(seconds_from_days(latent), seconds_from_days(infectious)), ref)
             results[i,j] = mean_ets
-            relative[i,j] = mean_ets/mean_ref
         end
     end
 
     myh5write(filename, @sprintf("%s/scan_mean_number_infectious_encounter/mean", root), results)
-    myh5write(filename, @sprintf("%s/scan_mean_number_infectious_encounter/mean_relative_to_poisson", root), relative)
     myh5write(filename, @sprintf("%s/scan_mean_number_infectious_encounter/range_latent", root), collect(range_latent_in_days))
     myh5write(filename, @sprintf("%s/scan_mean_number_infectious_encounter/range_infectious", root), collect(range_infectious_in_days))
     myh5desc(filename, @sprintf("%s/scan_mean_number_infectious_encounter", root),
