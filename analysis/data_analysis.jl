@@ -85,6 +85,10 @@ function analyse_all(
     ###########################################################################
     # surrogate data
 
+    # disease periods
+    range_latent = default_range_latent
+    range_infectious = default_range_infectious
+
     if lod >= 1
         root="/"
         sur = surrogate_randomize_per_train(ets, seed)
@@ -106,11 +110,6 @@ function analyse_all(
         analyse_temporal_features_of_encounter_train(sur_rand_all, filename_rand_all, root, support_crate=support_crate)
         analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur_rand_all, filename_rand_all, @sprintf("%s/disease/delta", root))
     end
-
-
-    # disease periods
-    range_latent = default_range_latent
-    range_infectious = default_range_infectious
 
 
     ###########################################################################
