@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-05-06 15:32:43
+# @Last Modified: 2022-05-06 15:40:26
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -296,7 +296,7 @@ def figure_3():
         shaded_regions=True,
         plot_kwargs={"data_rand": rand_kwargs},
     )
-    # save_ax(ax, f"{figure_path}/f3_conditional_encounter_rate.pdf")
+    save_ax(ax, f"{figure_path}/f3_conditional_encounter_rate.pdf")
 
     ax = plot_disease_mean_number_of_infectious_encounter_cutplane(
         ax=None,
@@ -309,19 +309,19 @@ def figure_3():
             "data_rand": rand_kwargs,
         },
     )
-    # save_ax(ax, f"{figure_path}/f3_cutplane.pdf")
+    save_ax(ax, f"{figure_path}/f3_cutplane.pdf")
 
     ax = plot_disease_mean_number_of_infectious_encounter_2d(
         which="data", relative_to="data_rand", control_plot=False
     )
     save_ax(ax, f"{figure_path}/f3_2d.pdf")
 
+    # hard coded file path, no `which` arg
     ax = plot_case_numbers()
     _set_size(ax, 3.3 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f3_case_numbers.pdf")
 
-    # branching and mean field use different files
-    # this one loads hardcoded paths
+    # hard coded file path, no `which` arg
     ax = plot_growth_rate()
     _set_size(ax, 3.3 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f3_growth_rate.pdf")
@@ -366,7 +366,7 @@ def figure_4(create_distirbution_insets=False):
 
             # 2d plots
             ax = plot_disease_mean_number_of_infectious_encounter_2d(
-                which=process, how="relative", control_plot=True
+                which=process, relative_to="data_rand", control_plot=True
             )
             _set_size(ax, 2.0 * cm, 2.0 * cm)
             save_ax(ax, f"{figure_path}/f4_2d_{process}.pdf")
@@ -742,10 +742,7 @@ def plot_etrain_rate(
 
     for wdx, w in enumerate(which):
         file = file_path_shorthand(w)
-        if w == "data":
-            dset = "data/encounter_train/rate"
-        else:
-            dset = "rate"
+        dset = "rate"
 
         data = h5.load(file, dset, raise_ex=True, keepdim=True)
 
@@ -835,14 +832,7 @@ def plot_dist_inter_encounter_interval(
 
     for wdx, w in enumerate(which):
         file = file_path_shorthand(w)
-        if w == "data":
-            dset = "data/encounter_train/distribution_inter_encounter_intervals"
-        elif "surrogate" in w:
-            # e.g. "surrogate_randomize_per_train"
-            file = file_path_shorthand("data")
-            dset = f"data_{w}/encounter_train/distribution_inter_encounter_intervals"
-        else:
-            dset = "distribution_inter_encounter_intervals"
+        dset = "distribution_inter_encounter_intervals"
 
         if log_or_lin == "log":
             dset += "_logbin"
@@ -2316,7 +2306,7 @@ def plot_controls_means_infectious_encounters(
 @warntry
 def plot_case_numbers(
     h5f=None,
-    which=["latent_1.00", "latent_2.00", "latent_6.00"],
+    which_latent=["latent_1.00", "latent_2.00", "latent_6.00"],
     average_over_rep=True,
     apply_formatting=True,
 ):
@@ -2348,7 +2338,7 @@ def plot_case_numbers(
 
         ax.plot(x, y_mean, color=color, **kwargs)
 
-    for wdx, w in enumerate(which):
+    for wdx, w in enumerate(which_latent):
         log.info(w)
         real = h5f["measurements"]["cases"][w]
         surr = h5f["measurements_randomized_per_train"]["cases"][w]
@@ -2435,14 +2425,14 @@ def plot_growth_rate():
         )
         lam_res[idx] = res.x[0]
 
-    ax.plot(time_x, lam_res, lw=1, label="_analytic_solution", color=clrs.data_randomized)
+    ax.plot(time_x, lam_res, lw=1, label="_analytic_solution", color=clrs["data_rand"])
 
     ax.errorbar(
         time_x[:],
         rand_y[:],
         yerr=rand[2, :],
         label="rand",
-        color=clrs.data_randomized,
+        color=clrs["data_rand"],
         fmt="o",
         markersize=ms_default,
         alpha=1,
