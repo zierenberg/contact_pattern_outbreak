@@ -43,6 +43,8 @@ function sample_surrogate_tailored(
     )
     filename = @sprintf("%s/surrogate_tailored_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
     _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    filename_rand = @sprintf("%s/surrogate_tailored_randomized_per_train_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration / 60)
 
     time_start = -seconds_from_days(7)
     interval_record = (0,seconds_from_days(28))
@@ -150,6 +152,11 @@ function sample_surrogate_tailored(
                                                           samples, filename,
                                                           @sprintf("%s/disease/delta_6_3",
                                                                    root))
+    # randomize, for now we only need this as a reference for the 2d plots
+    println("Randomize encounter trains")
+    sur = surrogate_randomize_per_train(samples, seed)
+    # myh5write(filename_rand,@sprintf("%s/trains/",root), sur)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand, @sprintf("%s/disease/delta", root))
 end
 
 #############
@@ -176,6 +183,8 @@ function sample_surrogate_inhomogeneous_poisson_weighted(
     )
     filename = @sprintf("%s/surrogate_inhomogeneous_poisson_weighted_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
     _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    filename_rand = @sprintf("%s/surrogate_inhomogeneous_poisson_weighted_randomized_per_train_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration / 60)
     # specificy features that need to be reproducde
     # number of trains:
     num_sample_trains = length(ets)
@@ -216,6 +225,11 @@ function sample_surrogate_inhomogeneous_poisson_weighted(
                                                           samples, filename,
                                                           @sprintf("%s/disease/delta_6_3",
                                                                    root))
+    # randomize, for now we only need this as a reference for the 2d plots
+    println("Randomize encounter trains")
+    sur = surrogate_randomize_per_train(samples, seed)
+    # myh5write(filename_rand,@sprintf("%s/trains/",root), sur)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand, @sprintf("%s/disease/delta", root))
 end
 
 
@@ -240,6 +254,8 @@ function sample_surrogate_inhomogeneous_poisson(
     )
     filename = @sprintf("%s/surrogate_inhomogeneous_poisson_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
     _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    filename_rand = @sprintf("%s/surrogate_inhomogeneous_poisson_randomized_per_train_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration / 60)
     # specificy features that need to be reproducde
     # number of trains:
     num_sample_trains = length(ets)
@@ -277,6 +293,11 @@ function sample_surrogate_inhomogeneous_poisson(
                                                           samples, filename,
                                                           @sprintf("%s/disease/delta_6_3",
                                                                    root))
+    # randomize, for now we only need this as a reference for the 2d plots
+    println("Randomize encounter trains")
+    sur = surrogate_randomize_per_train(samples, seed)
+    # myh5write(filename_rand,@sprintf("%s/trains/",root), sur)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand, @sprintf("%s/disease/delta", root))
 end
 
 
@@ -301,6 +322,8 @@ function sample_surrogate_homogeneous_poisson_weighted(
     )
     filename = @sprintf("%s/surrogate_homogeneous_poisson_weighted_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
     _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    filename_rand = @sprintf("%s/surrogate_homogeneous_poisson_weighted_randomized_per_train_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration / 60)
     # specificy features that need to be reproducde
     # number of trains:
     num_sample_trains = length(ets)
@@ -341,6 +364,12 @@ function sample_surrogate_homogeneous_poisson_weighted(
                                                           samples, filename,
                                                           @sprintf("%s/disease/delta_6_3",
                                                                    root))
+
+    # randomize, for now we only need this as a reference for the 2d plots
+    println("Randomize encounter trains")
+    sur = surrogate_randomize_per_train(samples, seed)
+    # myh5write(filename_rand,@sprintf("%s/trains/",root), sur)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand, @sprintf("%s/disease/delta", root))
 end
 
 
@@ -365,6 +394,8 @@ function sample_surrogate_homogeneous_poisson(
     )
     filename = @sprintf("%s/surrogate_homogeneous_poisson_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
     _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    filename_rand = @sprintf("%s/surrogate_homogeneous_poisson_randomized_per_train_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration / 60)
     # specificy features that need to be reproducde
     # number of trains:
     num_sample_trains = length(ets)
@@ -403,6 +434,12 @@ function sample_surrogate_homogeneous_poisson(
                                                           samples, filename,
                                                           @sprintf("%s/disease/delta_6_3",
                                                                    root))
+
+    # randomize, for now we only need this as a reference for the 2d plots
+    println("Randomize encounter trains")
+    sur = surrogate_randomize_per_train(samples, seed)
+    # myh5write(filename_rand,@sprintf("%s/trains/",root), sur)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand, @sprintf("%s/disease/delta", root))
 end
 
 #############
@@ -429,6 +466,8 @@ function sample_surrogate_weibull_weighted(
     )
     filename = @sprintf("%s/surrogate_weibull_weighted_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
     _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    filename_rand = @sprintf("%s/surrogate_weibull_weighted_randomized_per_train_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration / 60)
     # specificy features that need to be reproducde
     # number of trains:
     num_sample_trains = length(ets)
@@ -472,6 +511,12 @@ function sample_surrogate_weibull_weighted(
                                                           samples, filename,
                                                           @sprintf("%s/disease/delta_6_3",
                                                                    root))
+
+    # randomize, for now we only need this as a reference for the 2d plots
+    println("Randomize encounter trains")
+    sur = surrogate_randomize_per_train(samples, seed)
+    # myh5write(filename_rand,@sprintf("%s/trains/",root), sur)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand, @sprintf("%s/disease/delta", root))
 end
 
 """
@@ -495,6 +540,8 @@ function sample_surrogate_weibull(
     )
     filename = @sprintf("%s/surrogate_weibull_%s_filtered_%dmin.h5", path_out, label(experiment), minimum_duration/60)
     _,ets, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    filename_rand = @sprintf("%s/surrogate_weibull_randomized_per_train_%s_filtered_%dmin.h5",
+        path_out, label(experiment), minimum_duration / 60)
     # specificy features that need to be reproducde
     # number of trains:
     num_sample_trains = length(ets)
@@ -533,6 +580,12 @@ function sample_surrogate_weibull(
                                                           samples, filename,
                                                           @sprintf("%s/disease/delta_6_3",
                                                                    root))
+
+    # randomize, for now we only need this as a reference for the 2d plots
+    println("Randomize encounter trains")
+    sur = surrogate_randomize_per_train(samples, seed)
+    # myh5write(filename_rand,@sprintf("%s/trains/",root), sur)
+    analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur, filename_rand, @sprintf("%s/disease/delta", root))
 end
 
 ###############################################################################
