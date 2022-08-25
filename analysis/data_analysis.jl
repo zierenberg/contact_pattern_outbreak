@@ -176,7 +176,7 @@ function analyse_temporal_features_of_contact_activity(
         times=0:60*60:seconds_from_days(7)           # 1-week contact rate (taken directly from first argument, seems to work)
 
     ) where {I,T}
-    println("writing to ", root)
+    println("writing to ", filename, " dset ", root)
     println("... coefficient of variation")
     cv, cvj, cverr = coefficient_variation(cas, jackknife_error=true)
     myh5write(filename, @sprintf("%s/coefficient_variation", root), hcat(cv, cvj, cverr))
@@ -224,7 +224,7 @@ end
 ###############################################################################
 ### analyse contact stuff
 function  analyse_contact_duration(list_contacts, experiment::ContactData, filename::String, root::String)
-    println("writing to ", root)
+    println("writing to ", filename, " dset ", root)
     list_durations = [getindex.(contacts, 2) for contacts in list_contacts];
     # remove lists with zero elements because they 1) do not contribute to the
     # statistics of the durations and 2) thereby break the jackknife routine
@@ -266,7 +266,7 @@ function analyse_temporal_features_of_encounter_train(
         # 1.5-week conditional contact rate
         support_crate = 0:timestep(ets):seconds_from_days(7*1.5),
     ) where {I,T}
-    println("writing to ", root)
+    println("writing to ", filename, " dset ", root)
 
     println("... distribution total number encounter per train")
     edges=0:1:700
