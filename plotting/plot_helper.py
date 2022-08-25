@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-05-06 15:40:26
+# @Last Modified: 2022-05-24 15:55:56
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -158,32 +158,39 @@ clrs = dict(
 
 
 def file_path_shorthand(which):
-    # fmt: off
-    if which == "data":
-        return "./out/data_Copenhagen_filtered_15min.h5"
+    path = "./out/"
+    # add all the base paths
+    if which.startswith("data"):
+        path += "data"
 
-    elif which == "data_rand":
-        return "./out/surrogate_randomized_per_train_Copenhagen_filtered_15min.h5"
+    elif which.startswith("psn_unweighted"):
+        path += "surrogate_inhomogeneous_poisson"
 
-    elif which == "psn":
-        return "./out/surrogate_inhomogeneous_poisson_weighted_Copenhagen_filtered_15min.h5"
+    elif which.startswith("psn"):
+        path += "surrogate_inhomogeneous_poisson_weighted"
 
-    elif which == "psn_unweighted":
-        return "./out/surrogate_inhomogeneous_poisson_Copenhagen_filtered_15min.h5"
+    elif which.startswith("wbl_unweighted"):
+        path += "surrogate_weibull"
 
-    elif which == "wbl":
-        return "./out/surrogate_weibull_weighted_Copenhagen_filtered_15min.h5"
+    elif which.startswith("wbl"):
+        path += "surrogate_weibull_weighted"
 
-    elif which == "wbl_unweighted":
-        return "./out/surrogate_weibull_Copenhagen_filtered_15min.h5"
-
-    elif which == "tlrd":
-        return "./out/surrogate_tailored_Copenhagen_filtered_15min.h5"
-
+    elif which.startswith("tlrd"):
+        path += "surrogate_tailored"
     else:
         log.warning(f"Unknown shorthand: {which}")
         return None
-    # fmt: on
+
+    # for randomized, we appended a string to the filename
+    try:
+        if which[-5:] == "_rand":
+            path += "_randomized_per_train"
+    except:
+        pass
+
+    # and we have a suffix for filtering
+    path += "_Copenhagen_filtered_15min.h5"
+    return path
 
 
 # default marker size
@@ -360,13 +367,18 @@ def figure_4(create_distirbution_insets=False):
             _set_size(ax, 2.3 * cm, 1.8 * cm)
             save_ax(ax, f"{figure_path}/f4_iei_{process}.pdf")
 
-            ax = plot_dist_encounters_per_train(which=["data", process])
+            kwargs = default_plot_kwargs(process, for_errorbars=False)
+            kwargs["lw"] = 1.5
+            kwargs["zorder"] = 2
+            ax = plot_dist_encounters_per_train(
+                which=["data", process], plot_kwargs={process: kwargs}
+            )
             _set_size(ax, 2.3 * cm, 1.8 * cm)
             save_ax(ax, f"{figure_path}/f4_encouners_per_train_{process}.pdf")
 
             # 2d plots
             ax = plot_disease_mean_number_of_infectious_encounter_2d(
-                which=process, relative_to="data_rand", control_plot=True
+                which=process, relative_to=f"{process}_rand", control_plot=True
             )
             _set_size(ax, 2.0 * cm, 2.0 * cm)
             save_ax(ax, f"{figure_path}/f4_2d_{process}.pdf")
@@ -1304,6 +1316,8 @@ def plot_conditional_rate(
         file = file_path_shorthand(w)
         dset = "conditional_encounter_rate"
 
+        log.info(file)
+
         try:
             data = h5.load(file, dset, raise_ex=True, keepdim=True)
         except:
@@ -1388,10 +1402,7 @@ def plot_conditional_rate(
 # Fig 2f, Fig 3a, SM
 @warntry
 def plot_disease_mean_number_of_infectious_encounter_2d(
-    ax=None,
-    which="data",
-    relative_to=None,
-    control_plot=False
+    ax=None, which="data", relative_to=None, control_plot=False
 ):
     """
     # Parameters
@@ -1406,9 +1417,7 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
         fig = ax.get_figure()
     ax.set_rasterization_zorder(0)
 
-
     dset = "disease/delta/scan_mean_number_infectious_encounter"
-
 
     def get_2d(w, dset):
         file = file_path_shorthand(w)
@@ -1426,7 +1435,6 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
 
         return data_2d, range_inf, range_lat
 
-
     data_2d, range_inf, range_lat = get_2d(which, dset)
 
     # maybe we normalize
@@ -1437,9 +1445,8 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
         data_2d /= norm_2d
         data_2d *= 100  # in percent
 
-
     # customize style
-        # custom color maps
+    # custom color maps
     palette = [
         (0, "#C31B2B"),
         (0.25, "#ffad7e"),
