@@ -727,53 +727,57 @@ function analytic_survival_probability(
 
     # load encounter trains (ets)
     _, ets_data, _ = load_processed_data(experiment, minimum_duration, path_dat);
+    # randomized per train: keeps assumption of distribution of expected
+    # offspring across individuals but not across time
     ets_rand = surrogate_randomize_per_train(ets_data, seed_rand);
+    # NEW: also include assumption of uniform R_0 across individuals
+    ets_rand_all = surrogate_randomize_all(ets_data,seed_rand);
 
-    T_ift=3
-    T_lat_list=[2,6]
+    T_ift_list=[0.5,3]
 
-    # get mean infectious contacts for random
-    disease_model = DeltaDiseaseModel(seconds_from_days(T_lat_list[1]), seconds_from_days(T_ift))
-    dist = distribution_from_samples_infectious_encounter(
-                samples_infectious_encounter(disease_model, ets_rand)
-           )
-    edist = EmpiricalDistribution(dist)
-    mean_number_contacts = expectation(edist)
-    p_ref = 3.0 / mean_number_contacts
+    for T_ift in T_ift_list
 
-    # in general want representation via R
-    Rs = collect(0.6:0.1:6.0)
+        T_lat_list=[]
+        if T_ift == 3
+            T_lat_list = [2,6]
+        end
+        if T_ift == 0.5
+            T_lat_list = [1,1.5]
+        end
 
-    #branching process analysis
-    for T_lat in T_lat_list
-        for (label,ets) in zip(["data","rand"],[ets_data, ets_rand])
-            println(T_lat, " ", label)
-            # data-driven distributions
-            disease_model = DeltaDiseaseModel(seconds_from_days(T_lat), seconds_from_days(T_ift))
-            dist = distribution_from_samples_infectious_encounter(
-                        samples_infectious_encounter(disease_model, ets)
-                   )
-            edist = EmpiricalDistribution(dist)
+        # in general want representation via R
+        Rs = collect(0.6:0.1:6.0)
 
-            mean_number_contacts = expectation(edist)
-            ps = Rs ./ mean_number_contacts
+        #branching process analysis
+        for T_lat in T_lat_list
+            for (label,ets) in zip(["data","rand", "rand_all"],[ets_data, ets_rand, ets_rand_all])
+                println(T_ift, " ", T_lat, " ", label)
+                # data-driven distributions
+                disease_model = DeltaDiseaseModel(seconds_from_days(T_lat), seconds_from_days(T_ift))
+                dist = distribution_from_samples_infectious_encounter(
+                            samples_infectious_encounter(disease_model, ets)
+                       )
+                edist = EmpiricalDistribution(dist)
 
-            # sample survival as a function of infection probability
-            p_sur = zeros(length(ps))
-            P = Progress(length(ps), 1, "SurvivalProbability: ", offset=0)
-            for (j,p) in enumerate(ps)
-                p_sur[j] = solve_survival_probability(edist, p)
-                next!(P)
+                mean_number_contacts = expectation(edist)
+                ps = Rs ./ mean_number_contacts
+
+                # sample survival as a function of infection probability
+                p_sur = zeros(length(ps))
+                P = Progress(length(ps), 1, "SurvivalProbability: ", offset=0)
+                for (j,p) in enumerate(ps)
+                    p_sur[j] = solve_survival_probability(edist, p)
+                    next!(P)
+                end
+                Rs = ps * expectation(edist)
+
+                datasetname=@sprintf("/%s/infectious_%.2f_latent_%.2f/survival_probability_p/", label, T_ift, T_lat)
+                myh5write(filename, datasetname, hcat(ps, Rs, p_sur))
+                myh5desc(filename, datasetname,
+                         "semi-analytic solution of asymptotic survival probability, d1: probability to infect contact, d2: effective R, d3: survival probability")
             end
-            Rs = ps * expectation(edist)
-
-            datasetname=@sprintf("/%s/infectious_%.2f_latent_%.2f/survival_probability_p/", label, T_ift, T_lat)
-            myh5write(filename, datasetname, hcat(ps, Rs, p_sur))
-            myh5desc(filename, datasetname,
-                     "semi-analytic solution of asymptotic survival probability, d1: probability to infect contact, d2: effective R, d3: survival probability")
         end
     end
-
 
 end
 
