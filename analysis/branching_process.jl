@@ -176,6 +176,9 @@ The asymptotic survival probability is then obtained by numerically solving
 """
 #TODO: constrain that edist is only for integer elements
 function solve_survival_probability(edist::EmpiricalDistribution{T}, p::Number) where T
+    if p > 1
+        return NaN
+    end
     offspring_values = collect(0:maximum(edist.values))
     offspring_probs = zeros(length(offspring_values))
     for (i,x) in enumerate(offspring_values)

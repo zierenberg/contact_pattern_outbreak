@@ -728,23 +728,15 @@ function analytic_survival_probability(
     # load encounter trains (ets)
     _, ets_data, _ = load_processed_data(experiment, minimum_duration, path_dat);
     # randomized per train: keeps assumption of distribution of expected
-    # offspring across individuals but not across time
+    #                       offspring across individuals but not across time
     ets_rand = surrogate_randomize_per_train(ets_data, seed_rand);
     # NEW: also include assumption of uniform R_0 across individuals
     ets_rand_all = surrogate_randomize_all(ets_data,seed_rand);
 
-    T_ift_list=[0.5,3]
+    T_ift_list=[1,3]
+    T_lat_list = [2,6]
 
     for T_ift in T_ift_list
-
-        T_lat_list=[]
-        if T_ift == 3
-            T_lat_list = [2,6]
-        end
-        if T_ift == 0.5
-            T_lat_list = [1,1.5]
-        end
-
         # in general want representation via R
         Rs = collect(0.6:0.1:6.0)
 
