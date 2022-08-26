@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-05-24 15:55:56
+# @Last Modified: 2022-08-26 17:15:42
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -22,7 +22,7 @@
 # use_compact_size = False  # this recreates the small panel size of the manuscript
 
 # # load the main file
-# h5f = h5.recursive_load(
+# h5f = bnb.hi5.recursive_load(
 #    file_path_shorthand("data"), dtype=bdict, keepdim=True
 # )
 
@@ -56,11 +56,10 @@ import argparse
 import inspect
 import re
 import logging
-import h5py as h5
 import numpy as np
 import pandas as pd
 import scipy.stats
-from scipy.special import gamma
+from scipy.special import gamma, comb
 from scipy.optimize import curve_fit
 from itertools import product
 from sklearn.metrics import average_precision_score
@@ -114,7 +113,13 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 
+logging.basicConfig(
+    format="%(asctime)s | %(levelname)-8s | %(name)-12s | %(message)s",
+    datefmt="%y-%m-%d %H:%M",
+)
 log = logging.getLogger(__name__)
+log.setLevel("INFO")
+
 import seaborn as sns
 import palettable as pt
 
@@ -124,10 +129,7 @@ from benedict import benedict
 bdict = functools.partial(benedict, keypath_separator="/")
 # now we can call bdict() to get a dict that can be accessed as foo["some/level/bar"]
 
-from addict import Dict
-# these guys can be accessed like foo.some.level.bar
-
-import h5_helper as h5
+import bitsandbobs as bnb
 
 # enable code formatting with black
 # fmt: on
@@ -145,6 +147,7 @@ clrs = dict(
     tlrd="#E07D13",
     data="#233954",
     data_rand="#CBCB89",
+    data_rand_all="#888888",
     #
     #
     # viral_load = "#1e7d72",
@@ -185,11 +188,18 @@ def file_path_shorthand(which):
     try:
         if which[-5:] == "_rand":
             path += "_randomized_per_train"
+        elif which[-9:] == "_rand_all":
+            path += "_randomized_all"
     except:
         pass
 
     # and we have a suffix for filtering
     path += "_Copenhagen_filtered_15min.h5"
+
+    # checks
+    if not os.path.exists(path):
+        log.error(f"{which} -> {path} does not exist")
+
     return path
 
 
@@ -282,14 +292,14 @@ def figure_2():
         k="k_inf", periods="slow", set_size=False
     )
     ax.get_figure().tight_layout()
-    ax.set_ylim(1e-4, 1e-1)
+    ax.set_ylim(1e-4, 1.4e-1)
     ax.set_xlim(-5, 130)
-    _set_size(ax, 5.2 * cm, 2.1 * cm)
+    bnb.plt.set_size(ax, w=5.2, h=2.1, l=1.5, b=1.0, t=0.5, r=0.1)
     save_ax(ax, f"{figure_path}/f2_distribution_of_infectious_encounters.pdf")
 
     # different file conventions, this is hardcoded in the function, no `which` arg
     ax = plot_extinction_probability()
-    _set_size(ax, 5.2 * cm, 2.1 * cm)
+    bnb.plt.set_size(ax, w=5.2, h=2.1, l=1.5, b=1.0, t=0.5, r=0.1)
     save_ax(ax, f"{figure_path}/f2_extinction_probability.pdf")
 
 
@@ -551,7 +561,7 @@ def figure_sm_rssi_duration(how="absolute"):
 
     # define some helpers with defaul arguments
     load = functools.partial(
-        h5.recursive_load, dtype=bdict, keepdim=True, skip=["trains"]
+        bnb.hi5.recursive_load, dtype=bdict, keepdim=True, skip=["trains"]
     )
 
     plot_2d = functools.partial(
@@ -690,7 +700,9 @@ def warntry(func):
 def plot_etrain_rasters(h5f=None):
 
     if h5f is None:
-        h5f = h5.recursive_load(file_path_shorthand("data"), dtype=bdict, keepdim=True)
+        h5f = bnb.hi5.recursive_load(
+            file_path_shorthand("data"), dtype=bdict, keepdim=True
+        )
 
     fig, ax = plt.subplots()
     ax.set_rasterization_zorder(0)
@@ -756,7 +768,7 @@ def plot_etrain_rate(
         file = file_path_shorthand(w)
         dset = "rate"
 
-        data = h5.load(file, dset, raise_ex=True, keepdim=True)
+        data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
 
         r_time = data[0, :] / 60 / 60 / 24
         r_full = data[1, :] / norm_rate
@@ -849,7 +861,7 @@ def plot_dist_inter_encounter_interval(
         if log_or_lin == "log":
             dset += "_logbin"
 
-        dat = h5.load(file, dset, raise_ex=True, keepdim=True)[:]
+        dat = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)[:]
 
         iei = dat[0, :] * iei_norm
         prob = dat[1, :]
@@ -948,7 +960,7 @@ def plot_dist_encounters_per_day(
         file = file_path_shorthand(w)
         dset = "distribution_daily_number_encounters"
 
-        data = h5.load(file, dset, raise_ex=True, keepdim=True)
+        data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
 
         num_full = data[0, :]
         p_full = data[1, :]
@@ -1059,11 +1071,11 @@ def plot_dist_encounters_per_train(
         file = file_path_shorthand(w)
         dset = "distribution_total_number_encounter_linbin"
 
-        data = h5.load(file, dset, raise_ex=True, keepdim=True)
+        data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
 
         # fit result, this is a number.
         try:
-            exp_scale = h5.load(
+            exp_scale = bnb.hi5.load(
                 file, dset.replace("_linbin", "_fit_exp"), raise_ex=True, keepdim=False
             )
         except:
@@ -1154,9 +1166,11 @@ def plot_etrain_raster_example(h5f, ax=None):
     # usually we do not load the trains because they bloat space, so need to load
     # tid = 91
     tid = 134
-    real_train = h5.load(h5f["h5/filename"], f"/data/trains/train_{tid}") / 60 / 60 / 24
+    real_train = (
+        bnb.hi5.load(h5f["h5/filename"], f"/data/trains/train_{tid}") / 60 / 60 / 24
+    )
     surr_train = (
-        h5.load(
+        bnb.hi5.load(
             h5f["h5/filename"],
             f"/data_surrogate_randomize_per_train/trains/train_{tid}",
         )
@@ -1225,7 +1239,7 @@ def plot_disease_mean_number_of_infectious_encounter_cutplane(
 
     def get_2d(w, dset):
         file = file_path_shorthand(w)
-        h5f = h5.recursive_load(
+        h5f = bnb.hi5.recursive_load(
             file,
             dtype=bdict,
             keepdim=True,
@@ -1319,7 +1333,7 @@ def plot_conditional_rate(
         log.info(file)
 
         try:
-            data = h5.load(file, dset, raise_ex=True, keepdim=True)
+            data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
         except:
             # w might be a loaded array
             data = np.copy(w)
@@ -1421,7 +1435,7 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
 
     def get_2d(w, dset):
         file = file_path_shorthand(w)
-        h5f = h5.recursive_load(
+        h5f = bnb.hi5.recursive_load(
             file,
             dtype=bdict,
             keepdim=True,
@@ -1549,14 +1563,15 @@ def plot_extinction_probability(
     else:
         fig = ax.get_figure()
 
-    if h5f is None and which == "analytic":
-        h5f = h5.recursive_load(
+    # TODO make consistent
+    if h5f is None and (which == "analytic"):
+        h5f = bnb.hi5.recursive_load(
             "./out/analytic_survival_Copenhagen_filtered_15min.h5",
             dtype=bdict,
             keepdim=True,
         )
     elif h5f is None and which == "branching_process":
-        h5f = h5.recursive_load(
+        h5f = bnb.hi5.recursive_load(
             "./out/branching_process_Copenhagen_filtered_15min.h5",
             dtype=bdict,
             keepdim=True,
@@ -1567,18 +1582,37 @@ def plot_extinction_probability(
         data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p"
         rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p"
         rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p"
+        rand_all_2 = "rand_all/infectious_3.00_latent_2.00/survival_probability_p"
+        rand_all_6 = "rand_all/infectious_3.00_latent_6.00/survival_probability_p"
     elif which == "branching_process":
         data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
         data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
         rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
         rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
+        rand_all_2 = None
+        rand_all_6 = None
 
-    for path in [data_2, data_6, rand_2, rand_6]:
-        if "rand" in path:
+    for path in [data_2, data_6, rand_2, rand_6, rand_all_2, rand_all_6]:
+
+        ls = "-"
+        # customize plot style depending on data to plot
+        if path is None:
+            # not all defined for branching process
+            continue
+        if path[0:8] == "rand_all":
+            # randomized across trains and individuals
+            ls = "--"
+            color = clrs["data_rand_all"]
+            label = "randomized all"
+            if "_2" in path:
+                color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
+        elif path[0:4] == "rand":
+            # randomized by train
             color = clrs["n_psn"]
             label = "randomized"
             if "_2" in path:
                 color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
+
         elif "latent_2.0" in path:
             color = clrs["n_low"]
             label = "data"
@@ -1595,7 +1629,7 @@ def plot_extinction_probability(
 
         # we load survivial probability but decided to plot extinction probability
         y_ext = 1 - y_surv
-        ax.plot(x_repr, y_ext, color=color, label=label, clip_on=False)
+        ax.plot(x_repr, y_ext, color=color, label=label, ls=ls, clip_on=False)
 
     if apply_formatting:
         ax.set_xlim(0, 6)
@@ -1844,7 +1878,7 @@ def plot_disease_viral_load_examples():
 # Fig 4c
 @warntry
 def plot_disease_dist_infectious_encounters(
-    which=["data", "data_rand"],
+    which=["data", "data_rand", "data_rand_all"],
     ax=None,
     k="k_inf",
     periods="slow",
@@ -1889,7 +1923,7 @@ def plot_disease_dist_infectious_encounters(
 
             try:
 
-                data = h5.load(file, dset, raise_ex=True, keepdim=True)
+                data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
                 num_encounter = data[0, :]
                 p_full = data[1, :]
                 p_jack = data[2, :]
@@ -1909,6 +1943,14 @@ def plot_disease_dist_infectious_encounters(
                         color = clrs["data_rand"]
                     elif pdx == 1:
                         color = _alpha_to_solid_on_bg(clrs["data_rand"], alpha=0.8)
+                    zorder = 1
+                elif w == "data_rand_all":
+                    if pdx == 0:
+                        color = clrs["data_rand_all"]
+                    elif pdx == 1:
+                        color = _alpha_to_solid_on_bg(
+                            clrs["data_rand_all"], alpha=0.9, bg="black"
+                        )
                     zorder = 1
 
                 ax.plot(num_encounter, p_full, color=color, zorder=zorder)
@@ -1971,6 +2013,311 @@ def plot_disease_dist_infectious_encounters(
     return ax
 
 
+@warntry
+def plot_disease_dist_secondary_infections(
+    which=["data", "data_rand", "data_rand_all"],
+    R=3.0,
+    ax=None,
+    k="k_inf",
+    periods="slow",
+    control=None,
+    annotate=True,
+    plot_kwargs=None,
+):
+    """
+    In the branching process approximation, we can analytically calculate the number of secondary infections, given the empirical distribution of pot. infectious encounters.
+
+    # Parameters
+    which : list of str
+        datasets to plot, the usual ["data", "data_rand", "data_rand_all"]
+    R : float
+        for which R to plot the dist.
+        we select the constant p_inf in Eq1 from R = _ev(n_inf) * p_inf
+    k : str
+        usually "k_inf" to use delta disease.
+    periods : str
+        the combintations of T_lat and T_inf
+        "slow" for T_lat = 2 | 6 with T_inf = 3
+        "fast" fot T_lat = 1 | 1.5 with T_inf = 0.5
+        "2_3" or "6_3" to skip the comparison and only plot one
+    """
+
+    assert k in ["k_inf", "k_10.0", "k_1.0"]
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    p_todo = []
+    if periods == "slow":
+        p_todo.append("2_3")  # bias towards low
+        p_todo.append("6_3")  # bias towards high
+    elif periods == "fast":
+        p_todo.append("1_0.5")  # low
+        p_todo.append("1.5_0.5")  # high
+    else:
+        # we may want to pass manually
+        p_todo = [periods]
+
+    for wdx, w in enumerate(which):
+        file = file_path_shorthand(w)
+
+        # iterate over all periods
+        for pdx, period in enumerate(p_todo):
+
+            # stitch together dset
+            # depending on k, the path may differ (for k_inf we have delta disase)
+            if k == "k_inf":
+                dset = f"disease/delta_{period}"
+            else:
+                dset = f"disease/gamma_{period}/{k}"
+
+            if control is not None:
+                dset += f"/control_random_disease_{control}"
+            dset += "/distribution_infectious_encounter"
+
+            try:
+
+                data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
+                num_encounter = data[0, :]
+                p_full = data[1, :]
+                p_jack = data[2, :]
+                p_errs = data[3, :]
+
+                # here we hardcode the styles, instead of using defaults.
+
+                # comparing data vs randomized, fig 2
+                if w == "data":
+                    if pdx == 0:
+                        color = clrs["n_low"]
+                    elif pdx == 1:
+                        color = clrs["n_high"]
+                    zorder = 2
+                elif w == "data_rand":
+                    if pdx == 0:
+                        color = clrs["data_rand"]
+                    elif pdx == 1:
+                        color = _alpha_to_solid_on_bg(clrs["data_rand"], alpha=0.8)
+                    zorder = 1
+                elif w == "data_rand_all":
+                    if pdx == 0:
+                        color = clrs["data_rand_all"]
+                    elif pdx == 1:
+                        color = _alpha_to_solid_on_bg(
+                            clrs["data_rand_all"], alpha=0.9, bg="black"
+                        )
+                    zorder = 1
+
+                kwargs = plot_kwargs.copy() if plot_kwargs is not None else {}
+                kwargs.setdefault("color", color)
+                kwargs.setdefault("zorder", zorder)
+                kwargs.setdefault("alpha", 1)
+                kwargs.setdefault("label", f"{w} {period}")
+
+                # convert R to p_inf, depending on the expected number of pot inf enc
+                mean_n_inf = _ev(num_encounter, p_full)
+                p_inf = R / mean_n_inf
+
+                x_vals, p_x = _offspring_dist(num_encounter, p_full, p_inf)
+                ax.plot(x_vals,p_x,**kwargs)
+
+                log.info(f"{w}\t{period}")
+            except Exception as e:
+                log.warning(f"Failed to plot {w} {dset} {period}")
+                log.exception(e)
+
+    # _fix_log_ticks(ax.yaxis, every=1)
+    ax.xaxis.set_major_locator(MultipleLocator(25))
+    ax.xaxis.set_minor_locator(MultipleLocator(5))
+    # we probably want to compare with Lloyd Smith
+    ax.set_xlim(-3, 25)
+
+    if k == "k_inf":
+        title = r"$k\to\infty$"
+    else:
+        title = f"$k = {float(k[2:]):.0f}$"
+
+    title += f"    {periods}"
+    if control is not None:
+        title += f" {control}"
+
+    if annotate:
+        if show_xlabel:
+            ax.set_xlabel(r"Secondary infections")
+        if show_ylabel:
+            ax.set_ylabel(r"Distribution")
+        if show_title:
+            ax.set_title(title, fontsize=8)
+        if show_legend:
+            ax.legend()
+        if show_legend_in_extra_panel:
+            _legend_into_new_axes(ax)
+
+    fig.tight_layout()
+
+    return ax
+
+
+def _offspring_dist(n_infs, p_n_infs, p, x_max=150):
+    """
+    Eq 1 of our paper,
+    offspring distribution from empirical P(n_inf) in the branching approximation
+    """
+
+    n_max = n_infs[-1]
+    x_vals = np.arange(0, x_max + 1)
+    p_x = np.zeros(x_vals.shape)
+
+    for xdr, x in enumerate(x_vals):
+        n_beg = x
+        n_end = n_max
+        if n_beg > n_end:
+            continue
+
+        n_vals = np.arange(n_beg, n_end + 1)
+        n_idxs = n_infs.searchsorted(n_vals)
+
+        p_x[xdr] = np.sum(
+            p_n_infs[n_idxs]
+            * comb(n_vals, x)
+            * np.power(p, x)
+            * np.power((1 - p), (n_vals - x))
+        )
+
+    return x_vals, p_x
+
+@warntry
+def plot_offspring_moments(
+    which="data",
+    moment=1,
+    ax=None,
+    k="k_inf",
+    period="2_3",
+    control=None,
+    annotate=True,
+    normalize = False,
+    plot_kwargs=None,
+):
+    """
+    This is a lower-level function. no iteration over different data types, etc.
+    one `which` one `period`
+
+    plot_kwargs is passed to ax.plot
+
+    # Parameters
+    which : str
+        datasets to plot, the usual "data", "data_rand", "data_rand_all"
+    R : float
+        for which R to plot the dist.
+        we select the constant p_inf in Eq1 from R = _ev(n_inf) * p_inf
+    k : str
+        usually "k_inf" to use delta disease.
+    period : str
+        "2_3", "6_3", "1.5_0.5", "0.5_0.5"
+    """
+
+    assert k in ["k_inf", "k_10.0", "k_1.0"]
+    assert period in ["2_3", "6_3", "1.5_0.5", "0.5_0.5"]
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    w = which
+    file = file_path_shorthand(w)
+
+    # stitch together dset
+    # depending on k, the path may differ (for k_inf we have delta disase)
+    if k == "k_inf":
+        dset = f"disease/delta_{period}"
+    else:
+        dset = f"disease/gamma_{period}/{k}"
+
+    if control is not None:
+        dset += f"/control_random_disease_{control}"
+    dset += "/distribution_infectious_encounter"
+
+
+    try:
+        data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
+        num_encounter = data[0, :]
+        p_full = data[1, :]
+        p_jack = data[2, :]
+        p_errs = data[3, :]
+
+
+        R_vals = np.arange(0.1, 3.1, 0.1)
+        y_vals = np.ones(R_vals.shape) * np.nan
+
+        for rdx, R in enumerate(R_vals):
+            # convert R to p_inf
+            mean_n_inf = _ev(num_encounter, p_full)
+            p_inf = R / mean_n_inf
+
+            # get offspring distribution from dist of pot inf encounters
+            x_vals, p_x = _offspring_dist(num_encounter, p_full, p_inf)
+
+            # get the moment
+            moments = _stat_measures(x_vals, p_x)
+            y_vals[rdx] = moments[moment]
+
+        # we could normalize by what would be constant for the poisson process
+        if normalize:
+            if moment == 1:
+                y_vals = y_vals / np.power(R_vals, 1.0)
+            elif moment == 2:
+                y_vals = y_vals / np.power(R_vals, 1.0)
+            elif moment == 3:
+                y_vals = y_vals / np.power(R_vals, -0.5)
+            elif moment == 4:
+                y_vals = (y_vals - 3) / np.power(R_vals, -1.0)
+
+        plot_kwargs = plot_kwargs.copy() if plot_kwargs is not None else {}
+        plot_kwargs.setdefault("label", f"{w} {period} m{moment}")
+
+        ax.plot(R_vals, y_vals, **plot_kwargs)
+        ax.set_title(f"{w}")
+        ax.set_ylim(1e-6, 12)
+
+        log.info(f"{w}\t{dset}\t{period}")
+    except Exception as e:
+        log.warning(f"Failed to plot {w} {dset} {period}")
+        log.exception(e)
+
+    # _fix_log_ticks(ax.yaxis, every=1)
+    # ax.xaxis.set_major_locator(MultipleLocator(50))
+    # ax.xaxis.set_minor_locator(MultipleLocator(10))
+
+    # ax.set_xlabel(r"Pot. inf. encounters ei"))
+    # ax.set_ylabel(r"Probability P(ei)")
+
+    if k == "k_inf":
+        title = r"$k\to\infty$"
+    else:
+        title = f"$k = {float(k[2:]):.0f}$"
+
+    title += f"    {period}"
+    if control is not None:
+        title += f" {control}"
+
+    if annotate:
+        if show_xlabel:
+            ax.set_xlabel(r"Reproduction number $R_0$")
+        if show_ylabel:
+            ax.set_ylabel(r"Statistics")
+        # if show_title:
+        #     ax.set_title(title, fontsize=8)
+        if show_legend:
+            ax.legend()
+        if show_legend_in_extra_panel:
+            _legend_into_new_axes(ax)
+
+    fig.tight_layout()
+
+    return ax
+
 def compare_disease_dist_encounters_generative(
     ax=None,
     which=["data"],
@@ -2030,7 +2377,7 @@ def compare_disease_dist_encounters_generative(
             try:
                 file = file_path_shorthand(w)
 
-                data = h5.load(file, dset, raise_ex=True)
+                data = bnb.hi5.load(file, dset, raise_ex=True)
 
                 zorder = 0
                 if "surrogate_" in file:
@@ -2320,7 +2667,7 @@ def plot_case_numbers(
     fig, ax = plt.subplots()
 
     if h5f is None:
-        h5f = h5.recursive_load(
+        h5f = bnb.hi5.recursive_load(
             "./out/sample_continuous_branching_Copenhagen_filtered_15min.h5",
             dtype=bdict,
             keepdim=True,
@@ -2965,6 +3312,21 @@ def _ev(x, pdist):
     for idx, p in enumerate(pdist):
         ev += x[idx] * pdist[idx]
     return ev
+
+
+def _stat_measures(x, pdist):
+    """
+    get mean, variance and skewness etc.
+    think moments.
+
+    returns a dict: 1->mean, 2->variance, ...
+    """
+    mean = _ev(x, pdist)
+    variance = _ev(np.power(x - mean, 2.0), pdist)
+    skew = _ev(np.power(x - mean, 3.0), pdist) / np.power(variance, 3.0 / 2.0)
+    kurtosis = _ev(np.power(x - mean, 4.0), pdist) / np.power(variance, 2.0)
+
+    return {1:mean, 2:variance, 3:skew, 4:kurtosis}
 
 
 def _poisson_limit(h5f, target_inf):
