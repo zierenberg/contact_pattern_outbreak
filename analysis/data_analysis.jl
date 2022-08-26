@@ -50,9 +50,9 @@ function analyse_all(
     mkpath(path_out)
     filename_data = @sprintf("%s/data_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
-    filename_rand = @sprintf("%s/surrogate_randomized_per_train_%s_filtered_%dmin.h5",
+    filename_rand = @sprintf("%s/data_randomized_per_train_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
-    filename_rand_all = @sprintf("%s/surrogate_randomized_all_%s_filtered_%dmin.h5",
+    filename_rand_all = @sprintf("%s/data_randomized_all_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
 
     if filter_out_incomplete
@@ -109,6 +109,10 @@ function analyse_all(
         myh5write(filename_rand_all,@sprintf("%s/trains/",root), sur_rand_all)
         analyse_temporal_features_of_encounter_train(sur_rand_all, filename_rand_all, root, support_crate=support_crate)
         analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur_rand_all, filename_rand_all, @sprintf("%s/disease/delta", root))
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), sur_rand_all, filename_rand_all, "/disease/delta_2_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), sur_rand_all, filename_rand_all, "/disease/delta_6_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5)), sur_rand_all, filename_rand_all, "/disease/delta_1_0.5")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5)), sur_rand_all, filename_rand_all, "/disease/delta_1.5_0.5")
     end
 
 
