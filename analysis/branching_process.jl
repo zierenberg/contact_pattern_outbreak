@@ -224,41 +224,36 @@ function solve_survival_probability(edist::EmpiricalDistribution{T}, p::Number) 
 end
 
 
-"""
-    fit_negative_binomial(offspring_dist)
-
-_, ets_data, _ = load_processed_data();
-ets_rand = surrogate_randomize_per_train(ets_data, 1000);
-T_lat = 2; T_ift = 3;
-disease_model = DeltaDiseaseModel(seconds_from_days(T_lat), seconds_from_days(T_ift))
-dist_data = distribution_from_samples_infectious_encounter(
-            samples_infectious_encounter(disease_model, ets_data)
-       );
-dist_rand = distribution_from_samples_infectious_encounter(
-            samples_infectious_encounter(disease_model, ets_rand)
-       );
-edist_data = EmpiricalDistribution(dist_data);
-edist_rand = EmpiricalDistribution(dist_rand);
-R0 = 3
-p_data = R0/expectation(edist_data);
-p_rand = R0/expectation(edist_rand);
-offspring_dist_data = offspring_distribution(edist_data,p_data);
-offspring_dist_rand = offspring_distribution(edist_rand,p_rand);
-
-rng=MersenneTwister(1000); samples_data = [rand(rng, offspring_dist_data) for i in 1:Int(1e4)];
-rng=MersenneTwister(1000); samples_rand = [rand(rng, offspring_dist_rand) for i in 1:Int(1e4)];
 using Optim
-res_data = optimize(x->-1*sum(log.(pdf.(NegativeBinomial(x[1],x[2]),samples_data))), [0,0.01], [Inf,1], [1,0.1])
-res_rand = optimize(x->-1*sum(log.(pdf.(NegativeBinomial(x[1],x[2]),samples_rand))), [0,0.01], [Inf,1], [1,0.1])
-NB_data = NegativeBinomial(Optim.minimizer(res_data)...)
-NB_rand = NegativeBinomial(Optim.minimizer(res_rand)...)
-using Plots
-plot(xlabel="offspring",xlims=(0,20),xticks = 0:5:20)
-plot!(offspring_dist_data.values, offspring_dist_data.probabilities, label="empirical distribution")
-plot!(offspring_dist_data.values, pdf.(NB_data,offspring_dist_data.values), label="Negative Binomial fit")
-plot!(offspring_dist_rand.values, offspring_dist_rand.probabilities, label="empirical distribution")
-plot!(offspring_dist_rand.values, pdf.(NB_rand,offspring_dist_rand.values), label="Negative Binomial fit")
 """
+    fit_mle_negative_binomial(`samples`)
+
+find negative binomial distribution that maximizes the likelihood of `samples`.
+Instead of `samples`, one can also pass `rng`, `distribution` `numsamples` to
+generate samples
+
+# Example
+fit_mle_negative_binomal(samples,x0=[1,0.5])
+"""
+function fit_mle_negative_binomial(samples;
+        x0=[1,0.1],
+        xmin=[0,0],
+        xmax=[Inf,1]
+    )
+    # goal is to maximize the likelihood (product of likelihoods), which is the
+    # same as to minimize the sum of loglikelihoods (log of pdf of sample given
+    # distribution)
+    f_opt(x) = -1*sum(log.(pdf.(NegativeBinomial(x...), samples)));
+    res = optimize(f_opt, xmin, xmax, x0)
+    return NegativeBinomial(Optim.minimizer(res)...)
+end
+function fit_mle_negative_binomial(rng::AbstractRNG, distribution, numsamples::Int)
+    samples = [rand(rng, distribution) for i in 1:numsamples];
+    return fit_mle_negative_binomial(samples)
+end
+
+
+
 
 
 function _pgf(theta, offspring_dist)

@@ -23,6 +23,7 @@ include("surrogate.jl")
 
 default_range_latent     = 0:0.05:8
 default_range_infectious = 0.05:0.05:8
+default_range_R0 = 1.0:1.0:5.0
 default_support_crate = 0:300:seconds_from_days(7*1.5)
 
 """
@@ -159,6 +160,8 @@ function analyse_all(
         analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 10), sur, filename_rand, "/disease/gamma_1.5_0.5/k_10.0")
     end
 
+    ##########################################################################
+    # dispersion
 
     return
 end
@@ -270,7 +273,7 @@ function analyse_temporal_features_of_encounter_train(
 
     println("... distribution total number encounter per train")
     edges=0:1:700
-    f_weights(x) = normalize!(fit(Histogram{Float64}, length.(trains(x)), edges)).weights
+    f_weights(x) = normalize!(it(Histogram{Float64}, length.(trains(x)), edges)).weights
     w, wj, werr = jackknife(f_weights, ets)
     myh5write(filename, @sprintf("%s/distribution_total_number_encounter", root), hcat(edges[1:end-1], w, wj, werr))
     myh5desc(filename, @sprintf("%s/distribution_total_number_encounter", root),
@@ -590,7 +593,61 @@ function analyse_infectious_encounter_scan_gamma(
 end
 
 
+function analyse_dispersion_scan_delta(
+        range_latent_in_days,
+        range_infectious_in_days,
+        range_R0,
+        ets::encounter_trains{I,T1},
+        filename::String,
+        root::String;
+        # optional
+        seed_samples=1000,
+        num_samples=Int(1e3)
+    ) where {I,T1, T2}
+    result_r  = Array{Float64,3}(undef,
+                                 length(range_latent_in_days),
+                                 length(range_infectious_in_days),
+                                 length(range_R0)
+                                )
+    result_p  = Array{Float64,3}(undef,
+                                 length(range_latent_in_days),
+                                 length(range_infectious_in_days),
+                                 length(range_R0)
+                                )
+    print("... scan offpsring dispersion for delta disease (this may take a while)\n")
+    @showprogress 1 for (i, latent) in enumerate(range_latent_in_days)
+        for (j, infectious) in enumerate(range_infectious_in_days)
+            disease_model = DeltaDiseaseModel(seconds_from_days(latent),
+                                              seconds_from_days(infectious));
+            edist = EmpiricalDistribution(
+                distribution_from_samples_infectious_encounter(
+                    samples_infectious_encounter(disease_model, ets)
+                )
+            );
+            for (k, R0) in enumerate(range_R0)
+                println(" ... ... ", latent, " ", infectious, " ", R0)
+                p_inf = R0/expectation(edist)
+                if p_inf > 1
+                    result_r[i,j,k], result_p[i,j,k] = (NaN,NaN)
+                else
+                    offspring_dist = offspring_distribution(edist,p_inf);
+                    NB = fit_mle_negative_binomial(MersenneTwister(seed_samples), offspring_dist, num_samples);
+                    result_r[i,j,k], result_p[i,j,k] = params(NB)
+                end
+            end
+        end
+    end
 
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/NB_r", root), result_r)
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/NB_p", root), result_p)
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/range_R0", root), collect(range_R0))
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/range_latent", root), collect(range_latent_in_days))
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/range_infectious", root), collect(range_infectious_in_days))
+    myh5desc(filename, @sprintf("%s/scan_offspring_as_negative_binomial", root),
+             "scan over different latent periods, nfectious periods, and R0 to fit
+             the offspring distribution with a negative biomial (r,p), d1: latent period, d2: infectious period, d3: R0")
+    return
+end
 
 
 ###############################################################################
