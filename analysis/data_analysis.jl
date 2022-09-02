@@ -51,9 +51,9 @@ function analyse_all(
     mkpath(path_out)
     filename_data = @sprintf("%s/data_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
-    filename_rand = @sprintf("%s/surrogate_randomized_per_train_%s_filtered_%dmin.h5",
+    filename_rand = @sprintf("%s/data_randomized_per_train_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
-    filename_rand_all = @sprintf("%s/surrogate_randomized_all_%s_filtered_%dmin.h5",
+    filename_rand_all = @sprintf("%s/data_randomized_all_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
 
     if filter_out_incomplete
@@ -110,6 +110,10 @@ function analyse_all(
         myh5write(filename_rand_all,@sprintf("%s/trains/",root), sur_rand_all)
         analyse_temporal_features_of_encounter_train(sur_rand_all, filename_rand_all, root, support_crate=support_crate)
         analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur_rand_all, filename_rand_all, @sprintf("%s/disease/delta", root))
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), sur_rand_all, filename_rand_all, "/disease/delta_2_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), sur_rand_all, filename_rand_all, "/disease/delta_6_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5)), sur_rand_all, filename_rand_all, "/disease/delta_1_0.5")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5)), sur_rand_all, filename_rand_all, "/disease/delta_1.5_0.5")
     end
 
 
@@ -179,7 +183,7 @@ function analyse_temporal_features_of_contact_activity(
         times=0:60*60:seconds_from_days(7)           # 1-week contact rate (taken directly from first argument, seems to work)
 
     ) where {I,T}
-    println("writing to ", root)
+    println("writing to ", filename, " dset ", root)
     println("... coefficient of variation")
     cv, cvj, cverr = coefficient_variation(cas, jackknife_error=true)
     myh5write(filename, @sprintf("%s/coefficient_variation", root), hcat(cv, cvj, cverr))
@@ -227,7 +231,7 @@ end
 ###############################################################################
 ### analyse contact stuff
 function  analyse_contact_duration(list_contacts, experiment::ContactData, filename::String, root::String)
-    println("writing to ", root)
+    println("writing to ", filename, " dset ", root)
     list_durations = [getindex.(contacts, 2) for contacts in list_contacts];
     # remove lists with zero elements because they 1) do not contribute to the
     # statistics of the durations and 2) thereby break the jackknife routine
@@ -269,7 +273,7 @@ function analyse_temporal_features_of_encounter_train(
         # 1.5-week conditional contact rate
         support_crate = 0:timestep(ets):seconds_from_days(7*1.5),
     ) where {I,T}
-    println("writing to ", root)
+    println("writing to ", filename, " dset ", root)
 
     println("... distribution total number encounter per train")
     edges=0:1:700

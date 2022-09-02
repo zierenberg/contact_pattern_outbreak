@@ -49,7 +49,7 @@ include("analysis/run.jl")
 # To reproduce complete content for main paper run
 reproduce_paper()
 
-# For a more specific reproduction of individual content, follow the steps in reproduce_paper(). 
+# For a more specific reproduction of individual content, follow the steps in reproduce_paper().
 # We here provide an example for the data analysis (takes around ~6h)
 
 # Set this to `true` to skip error estimates, as they take most of the time:
@@ -74,6 +74,7 @@ Install required packages, new conda enviornment recommended. Some smaller packa
 ```bash
 conda install numpy scipy matplotlib seaborn h5py tqdm
 pip install python-benedict addict palettable
+pip install git+https://github.com/pSpitzner/bitsandbobs
 ```
 
 Start an interactive python shell with our `plot_helper`
