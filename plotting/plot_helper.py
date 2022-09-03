@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-09-03 12:01:24
+# @Last Modified: 2022-09-03 12:37:48
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -2383,19 +2383,38 @@ def plot_dispersion_cutplane(
     plot_kwargs = plot_kwargs.copy()
     plot_kwargs.setdefault("color", "C0")
 
-    ndim_data, x_dim, iterdim, noniterdim = _dispersion_data_prep(coords, x_dim, par, which)
+    # dimensionality checks and prep
+    dims = ["R0", "infectious", "latent"]
+    if x_dim is None:
+        try:
+            # use the one thats not specified
+            x_dim = [d for d in dims if d not in coords.keys()][0]
+        except:
+            raise ValueError("`x_dim` must be specified if you specify all 3 keys in `coords`")
+
+    # get the data
+    ndim_data = _dispersion_data_prep(coords, par, which)
+
+    # we allow one dim to iterate over to get multiple, fading lines
+    dim_lens = [len(ndim_data[k]) for k in dims]
+    assert 1 in dim_lens, f"Need at least one dimension to be of length 1"
+    noniterdim = dims[dim_lens.index(1)]
+    # the iterdim might be of len 1, too, but thats okay.
+    iterdim = [d for d in dims if d not in [x_dim, noniterdim]][0]
+
 
     if ax is None:
         fig, ax = plt.subplots()
     else:
         fig = ax.get_figure()
 
+    # put noniterdim value into legend below
     nk_val = ndim_data[noniterdim].values[0]
 
     # iterate over the remaining dim
     for kdx, k_val in enumerate(ndim_data[iterdim].to_numpy()):
         this_ndim_data = ndim_data.sel({iterdim: k_val})
-        # sanity check, one dimension remaining
+        # sanity check, only have one dimension remaining at this point
         assert len([d for d in this_ndim_data.shape if d > 1]) <= 1
 
         ax.plot(
@@ -2408,22 +2427,54 @@ def plot_dispersion_cutplane(
 
     ax.set_xlabel(x_dim)
     ax.set_ylabel(f"{par}")
+    ax.set_title(f"{which}")
     ax.legend()
 
     return ax
 
 
-def _dispersion_data_prep(coords, x_dim, par, which):
+def plot_dispersion_2d(x_dim, y_dim, off_dim_coord, par="r", which="data", ax=None, **plot_kwargs):
+    """
+    2D Plot of the Maximumlikelihood fits of a Negative Binomial to Offspring
+    distributions.
+
+    # Parameters
+    par : str
+        "r" or "p", which fit parameter to plot. The "r" parameter is what Lloyd-Smith
+        commonly denotes with "k" the dispersion parameter. Lower "k" -> more dispersion.
+    x_dim, y_dim : str
+        "R0", "infectious", "latent"
+        what to put where
+    off_dim_coord : float
+        where to cut the remaining dimension
+    """
+    plot_kwargs = plot_kwargs.copy()
+
+    dims = ["R0", "infectious", "latent"]
+    off_dim = [d for d in dims if d not in [x_dim, y_dim]][0]
+
+    # get the data
+    ndim_data = _dispersion_data_prep({off_dim:off_dim_coord}, par, which)
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    # lets use xarrays 2d plotting for now. Wraps matplotlib.pyplot.pcolormesh()
+    # https://docs.xarray.dev/en/stable/generated/xarray.plot.pcolormesh.html#xarray.plot.pcolormesh
+    ndim_data.plot(ax=ax, x=x_dim, y=y_dim, cbar_kwargs={"label": f"{par}"}, **plot_kwargs)
+
+    ax.set_title(f"{which} {off_dim}={off_dim_coord}")
+
+    return ax
+
+
+def _dispersion_data_prep(coords, par, which):
 
     dims = ["R0", "infectious", "latent"]
     assert par in ["r", "p"]
     coords = coords.copy()
-    if x_dim is None:
-        try:
-            x_dim = [d for d in dims if d not in coords.keys()][0]
-        except:
-            raise ValueError("`x_dim` must be specified if you specify all 3 keys in `coords`")
-
 
     file = file_path_shorthand(which)
     group = "/disease/delta/scan_offspring_as_negative_binomial"
@@ -2450,13 +2501,7 @@ def _dispersion_data_prep(coords, x_dim, par, which):
     # select the subset
     ndim_data = ndim_data.sel(coords, method="nearest")
 
-    dim_lens = [len(ndim_data[k]) for k in dims]
-    assert 1 in dim_lens, f"Need at least one dimension to be of length 1"
-    noniterdim = dims[dim_lens.index(1)]
-    # the iterdim may only be of len 1, but thats okay.
-    iterdim = [d for d in dims if d not in [x_dim, noniterdim]][0]
-
-    return ndim_data, x_dim, iterdim, noniterdim
+    return ndim_data
 
 
 @warntry
