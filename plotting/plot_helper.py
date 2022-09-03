@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-08-26 17:15:42
+# @Last Modified: 2022-09-03 12:01:24
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -58,6 +58,7 @@ import re
 import logging
 import numpy as np
 import pandas as pd
+import xarray as xr
 import scipy.stats
 from scipy.special import gamma, comb
 from scipy.optimize import curve_fit
@@ -301,6 +302,15 @@ def figure_2():
     ax = plot_extinction_probability()
     bnb.plt.set_size(ax, w=5.2, h=2.1, l=1.5, b=1.0, t=0.5, r=0.1)
     save_ax(ax, f"{figure_path}/f2_extinction_probability.pdf")
+
+    _, ax = plt.subplots()
+    plot_disease_dist_secondary_infections(
+        ax=ax, which=["data_rand", "data_rand_all"], periods="2_3"
+    )
+    plot_disease_dist_secondary_infections(ax=ax, which=["data"], periods="slow")
+    bnb.plt.set_size(ax, w=2.6, h=2.1, l=1.5, b=1.0, t=0.5, r=0.1)
+    sns.despine(ax=ax, trim=False, offset=3)
+    save_ax(ax, f"{figure_path}/f2_offspring_distribution.pdf")
 
 
 def figure_3():
@@ -2089,18 +2099,21 @@ def plot_disease_dist_secondary_infections(
 
                 # comparing data vs randomized, fig 2
                 if w == "data":
-                    if pdx == 0:
+                    mrk = "o"
+                    if period == "2_3" or period == "1_0.5":
                         color = clrs["n_low"]
-                    elif pdx == 1:
+                    elif period == "6_3" or period == "1.5_0.5":
                         color = clrs["n_high"]
                     zorder = 2
                 elif w == "data_rand":
+                    mrk = "s"
                     if pdx == 0:
                         color = clrs["data_rand"]
                     elif pdx == 1:
                         color = _alpha_to_solid_on_bg(clrs["data_rand"], alpha=0.8)
                     zorder = 1
                 elif w == "data_rand_all":
+                    mrk = "^"
                     if pdx == 0:
                         color = clrs["data_rand_all"]
                     elif pdx == 1:
@@ -2112,6 +2125,7 @@ def plot_disease_dist_secondary_infections(
                 kwargs = plot_kwargs.copy() if plot_kwargs is not None else {}
                 kwargs.setdefault("color", color)
                 kwargs.setdefault("zorder", zorder)
+                kwargs.setdefault("marker", mrk)
                 kwargs.setdefault("alpha", 1)
                 kwargs.setdefault("label", f"{w} {period}")
 
@@ -2120,7 +2134,12 @@ def plot_disease_dist_secondary_infections(
                 p_inf = R / mean_n_inf
 
                 x_vals, p_x = _offspring_dist(num_encounter, p_full, p_inf)
-                ax.plot(x_vals,p_x,**kwargs)
+                ax.scatter(x_vals, p_x, s=ms_default, clip_on=False, **kwargs)
+                kwargs["color"] = _alpha_to_solid_on_bg(kwargs["color"], 0.3)
+                kwargs["zorder"] -= 10
+                kwargs.pop("marker")
+                kwargs.setdefault("lw", 0.8)
+                ax.plot(x_vals, p_x, **kwargs)
 
                 log.info(f"{w}\t{period}")
             except Exception as e:
@@ -2128,10 +2147,11 @@ def plot_disease_dist_secondary_infections(
                 log.exception(e)
 
     # _fix_log_ticks(ax.yaxis, every=1)
-    ax.xaxis.set_major_locator(MultipleLocator(25))
+    ax.xaxis.set_major_locator(MultipleLocator(10))
     ax.xaxis.set_minor_locator(MultipleLocator(5))
     # we probably want to compare with Lloyd Smith
-    ax.set_xlim(-3, 25)
+    ax.set_xlim(0, 25)
+    ax.set_ylim(0, None)
 
     if k == "k_inf":
         title = r"$k\to\infty$"
@@ -2159,7 +2179,7 @@ def plot_disease_dist_secondary_infections(
     return ax
 
 
-def _offspring_dist(n_infs, p_n_infs, p, x_max=150):
+def _offspring_dist(n_infs, p_n_infs, p, x_max=25):
     """
     Eq 1 of our paper,
     offspring distribution from empirical P(n_inf) in the branching approximation
@@ -2187,6 +2207,47 @@ def _offspring_dist(n_infs, p_n_infs, p, x_max=150):
 
     return x_vals, p_x
 
+
+def sm_moments():
+
+    which = ["data_rand_all", "data_rand", "data"]
+    moments = [1, 2, 3, 4]
+    axes = []
+    for mdx, m in enumerate(moments):
+        _, ax = plt.subplots()
+        axes.append(ax)
+        for wdx, w in enumerate(which):
+            plot_offspring_moments(
+                ax=ax,
+                which=w,
+                moment=m,
+                period="2_3",
+                normalize=True,
+                plot_kwargs=dict(
+                    color=_alpha_to_solid_on_bg(f"C{mdx}", bnb.plt.fade(wdx, len(which))),
+                    label=f"{w} {m}",
+                ),
+            )
+            if which == "data":
+                # also plot another period?
+                plot_offspring_moments(
+                    ax=ax,
+                    which=w,
+                    moment=m,
+                    normalize=True,
+                    period="6_3",
+                    plot_kwargs=dict(
+                        color=_alpha_to_solid_on_bg(
+                            f"C{mdx}", bnb.plt.fade(wdx, len(which))
+                        ),
+                        label=f"{w} {m} 6_3",
+                    ),
+                )
+        ax.legend()
+    return axes
+
+
+# TODO: add which = "analytical poisson"
 @warntry
 def plot_offspring_moments(
     which="data",
@@ -2196,12 +2257,12 @@ def plot_offspring_moments(
     period="2_3",
     control=None,
     annotate=True,
-    normalize = False,
+    normalize=False,
     plot_kwargs=None,
 ):
     """
-    This is a lower-level function. no iteration over different data types, etc.
-    one `which` one `period`
+    This is a lower-level function. no iteration over different data types,
+    etc. one `which` one `period`
 
     plot_kwargs is passed to ax.plot
 
@@ -2239,14 +2300,12 @@ def plot_offspring_moments(
         dset += f"/control_random_disease_{control}"
     dset += "/distribution_infectious_encounter"
 
-
     try:
         data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
         num_encounter = data[0, :]
         p_full = data[1, :]
         p_jack = data[2, :]
         p_errs = data[3, :]
-
 
         R_vals = np.arange(0.1, 3.1, 0.1)
         y_vals = np.ones(R_vals.shape) * np.nan
@@ -2278,7 +2337,6 @@ def plot_offspring_moments(
         plot_kwargs.setdefault("label", f"{w} {period} m{moment}")
 
         ax.plot(R_vals, y_vals, **plot_kwargs)
-        ax.set_title(f"{w}")
         ax.set_ylim(1e-6, 12)
 
         log.info(f"{w}\t{dset}\t{period}")
@@ -2293,22 +2351,11 @@ def plot_offspring_moments(
     # ax.set_xlabel(r"Pot. inf. encounters ei"))
     # ax.set_ylabel(r"Probability P(ei)")
 
-    if k == "k_inf":
-        title = r"$k\to\infty$"
-    else:
-        title = f"$k = {float(k[2:]):.0f}$"
-
-    title += f"    {period}"
-    if control is not None:
-        title += f" {control}"
-
     if annotate:
         if show_xlabel:
             ax.set_xlabel(r"Reproduction number $R_0$")
         if show_ylabel:
             ax.set_ylabel(r"Statistics")
-        # if show_title:
-        #     ax.set_title(title, fontsize=8)
         if show_legend:
             ax.legend()
         if show_legend_in_extra_panel:
@@ -2318,6 +2365,101 @@ def plot_offspring_moments(
 
     return ax
 
+
+def plot_dispersion_cutplane(
+    coords, x_dim=None, par="r", which="data", ax=None, **plot_kwargs
+):
+    """
+    Plot of the Maximumlikelihood fits of a Negative Binomial to Offspring distributions.
+
+    # Parameters
+    par : str
+        "r" or "p", which fit parameter to plot. The "r" parameter is what Lloyd-Smith
+        commonly denotes with "k" the dispersion parameter. Lower "k" -> more dispersion.
+    coords : dict with keys
+        "R0", "infectious", "latent"
+        mapping to selection in the ndim array
+    """
+    plot_kwargs = plot_kwargs.copy()
+    plot_kwargs.setdefault("color", "C0")
+
+    ndim_data, x_dim, iterdim, noniterdim = _dispersion_data_prep(coords, x_dim, par, which)
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    nk_val = ndim_data[noniterdim].values[0]
+
+    # iterate over the remaining dim
+    for kdx, k_val in enumerate(ndim_data[iterdim].to_numpy()):
+        this_ndim_data = ndim_data.sel({iterdim: k_val})
+        # sanity check, one dimension remaining
+        assert len([d for d in this_ndim_data.shape if d > 1]) <= 1
+
+        ax.plot(
+            this_ndim_data[x_dim],
+            this_ndim_data,
+            alpha=bnb.plt.fade(kdx, len(ndim_data[iterdim]), invert=True),
+            label=f"{iterdim}={k_val}, {noniterdim}={nk_val}",
+            **plot_kwargs,
+        )
+
+    ax.set_xlabel(x_dim)
+    ax.set_ylabel(f"{par}")
+    ax.legend()
+
+    return ax
+
+
+def _dispersion_data_prep(coords, x_dim, par, which):
+
+    dims = ["R0", "infectious", "latent"]
+    assert par in ["r", "p"]
+    coords = coords.copy()
+    if x_dim is None:
+        try:
+            x_dim = [d for d in dims if d not in coords.keys()][0]
+        except:
+            raise ValueError("`x_dim` must be specified if you specify all 3 keys in `coords`")
+
+
+    file = file_path_shorthand(which)
+    group = "/disease/delta/scan_offspring_as_negative_binomial"
+    data = bnb.hi5.recursive_load(file, group, keepdim=True)
+    # ├── NB_p .................... ndarray  (5, 16, 17)
+    # ├── NB_r .................... ndarray  (5, 16, 17)
+    # ├── range_R0 ................ ndarray  (5,)
+    # ├── range_infectious ........ ndarray  (16,)
+    # └── range_latent ............ ndarray  (17,)
+    ndim_data = data[f"NB_{par}"]
+
+    # we want lists in the coordinates for our xarray selection to work
+    for k, v in coords.items():
+        if not isinstance(v, (list, np.ndarray, tuple)):
+            coords[k] = [v]
+
+    # make our life easier by accessing dimensions by name
+    ndim_data = xr.DataArray(
+        data=ndim_data,
+        dims=dims,
+        coords={k: data[f"range_{k}"] for k in dims},
+    )
+
+    # select the subset
+    ndim_data = ndim_data.sel(coords, method="nearest")
+
+    dim_lens = [len(ndim_data[k]) for k in dims]
+    assert 1 in dim_lens, f"Need at least one dimension to be of length 1"
+    noniterdim = dims[dim_lens.index(1)]
+    # the iterdim may only be of len 1, but thats okay.
+    iterdim = [d for d in dims if d not in [x_dim, noniterdim]][0]
+
+    return ndim_data, x_dim, iterdim, noniterdim
+
+
+@warntry
 def compare_disease_dist_encounters_generative(
     ax=None,
     which=["data"],
@@ -3326,7 +3468,7 @@ def _stat_measures(x, pdist):
     skew = _ev(np.power(x - mean, 3.0), pdist) / np.power(variance, 3.0 / 2.0)
     kurtosis = _ev(np.power(x - mean, 4.0), pdist) / np.power(variance, 2.0)
 
-    return {1:mean, 2:variance, 3:skew, 4:kurtosis}
+    return {1: mean, 2: variance, 3: skew, 4: kurtosis}
 
 
 def _poisson_limit(h5f, target_inf):
