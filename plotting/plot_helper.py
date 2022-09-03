@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-09-03 12:37:48
+# @Last Modified: 2022-09-03 12:51:31
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -2473,7 +2473,7 @@ def plot_dispersion_2d(x_dim, y_dim, off_dim_coord, par="r", which="data", ax=No
 def _dispersion_data_prep(coords, par, which):
 
     dims = ["R0", "infectious", "latent"]
-    assert par in ["r", "p"]
+    assert par in ["r", "p", "mean", "var"]
     coords = coords.copy()
 
     file = file_path_shorthand(which)
@@ -2484,7 +2484,16 @@ def _dispersion_data_prep(coords, par, which):
     # ├── range_R0 ................ ndarray  (5,)
     # ├── range_infectious ........ ndarray  (16,)
     # └── range_latent ............ ndarray  (17,)
-    ndim_data = data[f"NB_{par}"]
+
+    if par in ["r", "p"]:
+        ndim_data = data[f"NB_{par}"]
+    else:
+        r = data["NB_r"]
+        p = data["NB_p"]
+        if par == "mean":
+            ndim_data = r * p / (1 - p)
+        elif par == "var":
+            ndim_data = r * p / (1 - p)**2
 
     # we want lists in the coordinates for our xarray selection to work
     for k, v in coords.items():
