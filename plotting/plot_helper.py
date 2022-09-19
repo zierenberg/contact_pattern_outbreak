@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-09-03 12:51:31
+# @Last Modified: 2022-09-19 11:13:05
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -1885,7 +1885,6 @@ def plot_disease_viral_load_examples():
     fig.tight_layout()
 
 
-# Fig 4c
 @warntry
 def plot_disease_dist_infectious_encounters(
     which=["data", "data_rand", "data_rand_all"],
@@ -2417,6 +2416,8 @@ def plot_dispersion_cutplane(
         # sanity check, only have one dimension remaining at this point
         assert len([d for d in this_ndim_data.shape if d > 1]) <= 1
 
+        this_ndim_data = this_ndim_data.squeeze()
+
         ax.plot(
             this_ndim_data[x_dim],
             this_ndim_data,
@@ -2473,7 +2474,6 @@ def plot_dispersion_2d(x_dim, y_dim, off_dim_coord, par="r", which="data", ax=No
 def _dispersion_data_prep(coords, par, which):
 
     dims = ["R0", "infectious", "latent"]
-    assert par in ["r", "p", "mean", "var"]
     coords = coords.copy()
 
     file = file_path_shorthand(which)
@@ -2485,15 +2485,27 @@ def _dispersion_data_prep(coords, par, which):
     # ├── range_infectious ........ ndarray  (16,)
     # └── range_latent ............ ndarray  (17,)
 
-    if par in ["r", "p"]:
-        ndim_data = data[f"NB_{par}"]
+
+    r = data["NB_r"]
+    p = data["NB_p"]
+    # convert from julia to wiki definition
+    p = 1 - p
+    if par == "r":
+        ndim_data = r
+    elif par == "p":
+        ndim_data = p
+    elif par == "disp":
+        ndim_data = 1/r
+    elif par == "mean":
+        ndim_data = r * p / (1 - p)
+    elif par == "var":
+        ndim_data = r * p / (1 - p)**2
+    elif par == "jz":
+        mean = r * p / (1 - p)
+        var = r * p / (1 - p)**2
+        ndim_data = var / mean - 1
     else:
-        r = data["NB_r"]
-        p = data["NB_p"]
-        if par == "mean":
-            ndim_data = r * p / (1 - p)
-        elif par == "var":
-            ndim_data = r * p / (1 - p)**2
+        raise KeyError(f"unknow parameter {par}. known: r, p, mean, var")
 
     # we want lists in the coordinates for our xarray selection to work
     for k, v in coords.items():
