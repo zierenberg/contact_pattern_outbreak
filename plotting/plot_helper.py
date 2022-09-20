@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-09-19 11:13:05
+# @Last Modified: 2022-09-20 17:35:53
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -109,7 +109,7 @@ matplotlib.rcParams["axes.prop_cycle"] = matplotlib.cycler("color",
     ])  # qualitative, somewhat color-blind friendly, in mpl words 'tab5'
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.ticker import MultipleLocator, LogLocator
+from matplotlib.ticker import MultipleLocator, LogLocator, NullFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
@@ -289,9 +289,24 @@ def figure_2():
     # ax.set_xlim(-5, 150)
     # ax.set_ylim(1e-4, 1e-1)
 
+    ax = None
     ax = plot_disease_dist_infectious_encounters(
-        k="k_inf", periods="slow", set_size=False
+        ax=ax, k="k_inf", periods="slow", which=["data"]
     )
+    # for randomized, we only plot one period. they overlap.
+    ax = plot_disease_dist_infectious_encounters(
+        ax=ax,
+        k="k_inf",
+        periods="2_3",
+        which=["data_rand"],
+    )
+    ax = plot_disease_dist_infectious_encounters(
+        ax=ax,
+        k="k_inf",
+        periods="2_3",
+        which=["data_rand_all"],
+    )
+
     ax.get_figure().tight_layout()
     ax.set_ylim(1e-4, 1.4e-1)
     ax.set_xlim(-5, 130)
@@ -300,17 +315,78 @@ def figure_2():
 
     # different file conventions, this is hardcoded in the function, no `which` arg
     ax = plot_extinction_probability()
-    bnb.plt.set_size(ax, w=5.2, h=2.1, l=1.5, b=1.0, t=0.5, r=0.1)
+    bnb.plt.set_size(ax, w=5.2, h=2.1, l=1.0, b=0.6, t=0.2, r=0.1)
     save_ax(ax, f"{figure_path}/f2_extinction_probability.pdf")
 
-    _, ax = plt.subplots()
-    plot_disease_dist_secondary_infections(
-        ax=ax, which=["data_rand", "data_rand_all"], periods="2_3"
+    ax = None
+    ax = plot_disease_dist_secondary_infections(
+        ax=ax, R=3.0, which=["data_rand", "data_rand_all"], periods="2_3"
     )
-    plot_disease_dist_secondary_infections(ax=ax, which=["data"], periods="slow")
-    bnb.plt.set_size(ax, w=2.6, h=2.1, l=1.5, b=1.0, t=0.5, r=0.1)
+    ax = plot_disease_dist_secondary_infections(
+        ax=ax, R=3.0, which=["data"], periods="2_3"
+    )
+    bnb.plt.set_size(ax, w=2.1, h=1.6, l=1.0, b=0.6, t=0.2, r=0.1)
     sns.despine(ax=ax, trim=False, offset=3)
     save_ax(ax, f"{figure_path}/f2_offspring_distribution.pdf")
+
+    # dispersion vs latent period
+    ax = None
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(R0=3, infectious=3),
+        par="disp",
+        which="data_rand_all",
+    )
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(R0=3, infectious=3),
+        par="disp",
+        which="data_rand",
+    )
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(R0=3, infectious=3),
+        par="disp",
+        which="data",
+    )
+    bnb.plt.set_size(ax, w=1.6, h=1.0, l=1.0, b=0.6, t=0.2, r=0.1)
+    sns.despine(ax=ax, trim=False, offset=3)
+    save_ax(ax, f"{figure_path}/f2_dispersion_vs_latent.pdf")
+
+    # dispersion vs R0
+    ax = None
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(latent=2, infectious=3),
+        par="disp",
+        which="data_rand",
+    )
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(latent=2, infectious=3),
+        par="disp",
+        which="data_rand_all",
+    )
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(latent=2, infectious=3),
+        par="disp",
+        which="data",
+        color=clrs["n_low"],
+    )
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(latent=6, infectious=3),
+        par="disp",
+        which="data",
+        color=clrs["n_high"],
+    )
+    bnb.plt.set_size(ax, w=.4, h=1.0, l=0.3, b=0.6, t=0.2, r=0.1)
+    # sns.despine(ax=ax, trim=False, bottom=True, left=True, offset=3)
+    sns.despine(ax=ax, trim=False, offset=3)
+    # ax.xaxis.set_visible(False)
+    # ax.yaxis.set_visible(False)
+    save_ax(ax, f"{figure_path}/f2_dispersion_vs_R.pdf")
 
 
 def figure_3():
@@ -1602,25 +1678,32 @@ def plot_extinction_probability(
         rand_all_2 = None
         rand_all_6 = None
 
-    for path in [data_2, data_6, rand_2, rand_6, rand_all_2, rand_all_6]:
+    # for path in [data_2, data_6, rand_2, rand_6, rand_all_2, rand_all_6]:
+    for path in [
+        rand_all_2,
+        rand_2,
+        data_6,
+        data_2,
+    ]:
 
-        ls = "-"
+        plot_kwargs = dict()
         # customize plot style depending on data to plot
         if path is None:
             # not all defined for branching process
             continue
         if path[0:8] == "rand_all":
             # randomized across trains and individuals
-            ls = "--"
+            plot_kwargs = dict(linestyle=(0, (2.0, 2.0)), dash_capstyle="round")
             color = clrs["data_rand_all"]
             label = "randomized all"
-            if "_2" in path:
+            if "_2" not in path:
                 color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
         elif path[0:4] == "rand":
             # randomized by train
+            plot_kwargs = dict(linestyle=(0, (2.0, 2.0)), dash_capstyle="round")
             color = clrs["n_psn"]
             label = "randomized"
-            if "_2" in path:
+            if "_2" not in path:
                 color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
 
         elif "latent_2.0" in path:
@@ -1639,17 +1722,28 @@ def plot_extinction_probability(
 
         # we load survivial probability but decided to plot extinction probability
         y_ext = 1 - y_surv
-        ax.plot(x_repr, y_ext, color=color, label=label, ls=ls, clip_on=False)
+
+        # limit xrange here, so we can keep clip_on=False
+        idx = np.where((x_repr > 0.7) & (x_repr <= 5))[0]
+        ax.plot(
+            x_repr[idx],
+            y_ext[idx],
+            color=color,
+            label=label,
+            clip_on=False,
+            **plot_kwargs,
+        )
 
     if apply_formatting:
-        ax.set_xlim(0, 6)
+        ax.set_xlim(0.7, 5)
         ax.set_ylim(0, 1)
         ax.yaxis.set_major_locator(MultipleLocator(0.5))
         ax.yaxis.set_minor_locator(MultipleLocator(0.1))
-        ax.xaxis.set_major_locator(MultipleLocator(2))
+        # ax.xaxis.set_major_locator(MultipleLocator(2))
+        ax.set_xticks([1, 3, 5])
         ax.xaxis.set_minor_locator(MultipleLocator(1))
 
-        sns.despine(ax=ax, trim=True, offset=3)
+        sns.despine(ax=ax, trim=False, offset=3)
 
         if show_xlabel:
             ax.set_xlabel(r"Reproduction number $R_0$")
@@ -1893,12 +1987,11 @@ def plot_disease_dist_infectious_encounters(
     periods="slow",
     plot_kwargs=None,
     control=None,
-    set_size=True,
     annotate=True,
 ):
 
     assert k in ["k_inf", "k_10.0", "k_1.0"]
-    assert periods in ["fast", "slow"]
+    assert periods in ["fast", "slow", "2_3", "6_3", "1_0.5", "1.5_0.5"]
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -1912,6 +2005,8 @@ def plot_disease_dist_infectious_encounters(
     elif periods == "fast":
         p_todo.append("1_0.5")  # low
         p_todo.append("1.5_0.5")  # high
+    else:
+        p_todo.append(periods)
 
     for wdx, w in enumerate(which):
         file = file_path_shorthand(w)
@@ -1939,20 +2034,27 @@ def plot_disease_dist_infectious_encounters(
                 p_errs = data[3, :]
 
                 # here we hardcode the styles, instead of using defaults.
+                if plot_kwargs is None:
+                    plot_kwargs = dict()
 
                 # comparing data vs randomized, fig 2
                 if w == "data":
                     if pdx == 0:
                         color = clrs["n_low"]
+                        zorder = 3
                     elif pdx == 1:
                         color = clrs["n_high"]
-                    zorder = 2
+                        zorder = 2
                 elif w == "data_rand":
                     if pdx == 0:
                         color = clrs["data_rand"]
                     elif pdx == 1:
                         color = _alpha_to_solid_on_bg(clrs["data_rand"], alpha=0.8)
                     zorder = 1
+                    # plot_kwargs.setdefault("linestyle", (0, (0.01, 1.5)))
+                    plot_kwargs.setdefault("linestyle", (0, (2.0, 2.0)))
+                    plot_kwargs.setdefault("dash_capstyle", "round")
+                    # plot_kwargs.setdefault("lw", 2)
                 elif w == "data_rand_all":
                     if pdx == 0:
                         color = clrs["data_rand_all"]
@@ -1960,24 +2062,28 @@ def plot_disease_dist_infectious_encounters(
                         color = _alpha_to_solid_on_bg(
                             clrs["data_rand_all"], alpha=0.9, bg="black"
                         )
-                    zorder = 1
+                    zorder = 0
+                    plot_kwargs.setdefault("linestyle", (0, (2.0, 2.0)))
+                    plot_kwargs.setdefault("dash_capstyle", "round")
 
-                ax.plot(num_encounter, p_full, color=color, zorder=zorder)
+                ax.plot(num_encounter, p_full, color=color, zorder=zorder, **plot_kwargs)
                 ref = _ev(num_encounter, p_full)
                 ax.axvline(
                     ref,
                     0,
-                    1,
-                    linestyle=(0, (0.01, 2)),
+                    0.01,
+                    linestyle=(0, (1, 2)),
                     dash_capstyle="round",
                     lw=0.8,
-                    color=_alpha_to_solid_on_bg(color, 0.5),
+                    # color=_alpha_to_solid_on_bg(color, 0.5),
+                    color=_alpha_to_solid_on_bg(color, 1.0),
                     zorder=zorder - 10,
                 )
 
                 log.info(f"{w}\t{period}:\t{ref:.2f}")
             except Exception as e:
                 log.warning(f"Failed to plot {w} {dset} {period}")
+                log.error(e)
 
     ax.set_xlim(-5, 100)
     ax.set_yscale("log")
@@ -2014,10 +2120,6 @@ def plot_disease_dist_infectious_encounters(
             ax.legend()
         if show_legend_in_extra_panel:
             _legend_into_new_axes(ax)
-
-    if set_size:
-        fig.tight_layout()
-        _set_size(ax, 3.3 * cm, 1.7 * cm)
 
     return ax
 
@@ -2075,6 +2177,8 @@ def plot_disease_dist_secondary_infections(
         # iterate over all periods
         for pdx, period in enumerate(p_todo):
 
+            log.info(f"{w}\t{period}")
+
             # stitch together dset
             # depending on k, the path may differ (for k_inf we have delta disase)
             if k == "k_inf":
@@ -2098,19 +2202,19 @@ def plot_disease_dist_secondary_infections(
 
                 # comparing data vs randomized, fig 2
                 if w == "data":
-                    mrk = "o"
+                    mrk = "s"
                     if period == "2_3" or period == "1_0.5":
                         color = clrs["n_low"]
                     elif period == "6_3" or period == "1.5_0.5":
                         color = clrs["n_high"]
                     zorder = 2
                 elif w == "data_rand":
-                    mrk = "s"
+                    mrk = "o"
                     if pdx == 0:
                         color = clrs["data_rand"]
                     elif pdx == 1:
                         color = _alpha_to_solid_on_bg(clrs["data_rand"], alpha=0.8)
-                    zorder = 1
+                    zorder = 6
                 elif w == "data_rand_all":
                     mrk = "^"
                     if pdx == 0:
@@ -2119,7 +2223,7 @@ def plot_disease_dist_secondary_infections(
                         color = _alpha_to_solid_on_bg(
                             clrs["data_rand_all"], alpha=0.9, bg="black"
                         )
-                    zorder = 1
+                    zorder = 4
 
                 kwargs = plot_kwargs.copy() if plot_kwargs is not None else {}
                 kwargs.setdefault("color", color)
@@ -2127,30 +2231,63 @@ def plot_disease_dist_secondary_infections(
                 kwargs.setdefault("marker", mrk)
                 kwargs.setdefault("alpha", 1)
                 kwargs.setdefault("label", f"{w} {period}")
+                kwargs.setdefault("s", 1.3 if w == "data_rand" else ms_default)
 
                 # convert R to p_inf, depending on the expected number of pot inf enc
                 mean_n_inf = _ev(num_encounter, p_full)
                 p_inf = R / mean_n_inf
 
+                # scatter of the data
                 x_vals, p_x = _offspring_dist(num_encounter, p_full, p_inf)
-                ax.scatter(x_vals, p_x, s=ms_default, clip_on=False, **kwargs)
-                kwargs["color"] = _alpha_to_solid_on_bg(kwargs["color"], 0.3)
-                kwargs["zorder"] -= 10
-                kwargs.pop("marker")
-                kwargs.setdefault("lw", 0.8)
-                ax.plot(x_vals, p_x, **kwargs)
+                ax.scatter(x_vals, p_x, clip_on=False, **kwargs)
 
-                log.info(f"{w}\t{period}")
+                # plot the negative binomial fit
+                # instead of just connecting the scattered data points
+                kwargs["color"] = _alpha_to_solid_on_bg(kwargs["color"], 0.8)
+                kwargs["zorder"] -= 1
+                kwargs.pop("marker")
+                kwargs.pop("s")
+                kwargs.setdefault("lw", 0.8)
+                # ax.plot(x_vals, p_x, **kwargs)
+
+                try:
+                    # retreive fit values from 2d sweep.
+                    tlat, tift = period.split("_")  # "2_3" etc
+                    coords = dict(latent=float(tlat), infectious=float(tift), R0=float(R))
+                    r = float(_dispersion_data_prep(coords=coords, par="r", which=w))
+                    p = float(_dispersion_data_prep(coords=coords, par="p", which=w))
+                    log.info(f"negative binomial for {coords}: r: {r:.3f}, p: {p:.3f}")
+
+                    # negative binomial from scipy matches julia pretty close
+                    # p = p, r = n, but we converted p of success to failure in _data_prep
+                    p = 1 - p
+                    x_vals = np.arange(0, 26)
+                    y_vals = scipy.stats.nbinom.pmf(x_vals, r, p)
+
+                    # mean = p * r / (1 - p)
+                    # var = p * r / (1 - p) ** 2
+                    # log.info(f"mean: {mean:.3f}, var: {var:.3f}, r: {r:.3f} p: {p:.3f}")
+                    # log.info(x_vals[0:10])
+                    # log.info(y_vals[0:10])
+
+                    ax.plot(x_vals, y_vals, clip_on=False, **kwargs)
+
+                except Exception as e:
+                    log.error(f"Failed to retreive fit parameters: {e}")
+
             except Exception as e:
                 log.warning(f"Failed to plot {w} {dset} {period}")
                 log.exception(e)
 
     # _fix_log_ticks(ax.yaxis, every=1)
-    ax.xaxis.set_major_locator(MultipleLocator(10))
-    ax.xaxis.set_minor_locator(MultipleLocator(5))
-    # we probably want to compare with Lloyd Smith
     ax.set_xlim(0, 25)
     ax.set_ylim(0, None)
+    ax.xaxis.set_minor_locator(MultipleLocator(5))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+    ax.yaxis.set_major_locator(MultipleLocator(0.2))
+    ax.xaxis.set_major_locator(MultipleLocator(20))
+    sns.despine(ax=ax, trim=False, offset=3)
+    # we probably want to compare with Lloyd Smith
 
     if k == "k_inf":
         title = r"$k\to\infty$"
@@ -2380,7 +2517,6 @@ def plot_dispersion_cutplane(
         mapping to selection in the ndim array
     """
     plot_kwargs = plot_kwargs.copy()
-    plot_kwargs.setdefault("color", "C0")
 
     # dimensionality checks and prep
     dims = ["R0", "infectious", "latent"]
@@ -2389,7 +2525,9 @@ def plot_dispersion_cutplane(
             # use the one thats not specified
             x_dim = [d for d in dims if d not in coords.keys()][0]
         except:
-            raise ValueError("`x_dim` must be specified if you specify all 3 keys in `coords`")
+            raise ValueError(
+                "`x_dim` must be specified if you specify all 3 keys in `coords`"
+            )
 
     # get the data
     ndim_data = _dispersion_data_prep(coords, par, which)
@@ -2400,7 +2538,6 @@ def plot_dispersion_cutplane(
     noniterdim = dims[dim_lens.index(1)]
     # the iterdim might be of len 1, too, but thats okay.
     iterdim = [d for d in dims if d not in [x_dim, noniterdim]][0]
-
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -2418,23 +2555,75 @@ def plot_dispersion_cutplane(
 
         this_ndim_data = this_ndim_data.squeeze()
 
-        ax.plot(
-            this_ndim_data[x_dim],
-            this_ndim_data,
-            alpha=bnb.plt.fade(kdx, len(ndim_data[iterdim]), invert=True),
-            label=f"{iterdim}={k_val}, {noniterdim}={nk_val}",
-            **plot_kwargs,
+        kwargs = plot_kwargs.copy()
+        kwargs.setdefault("label", f"{iterdim}={k_val}, {noniterdim}={nk_val}")
+        kwargs.setdefault(
+            "alpha", bnb.plt.fade(kdx, len(ndim_data[iterdim]), invert=True)
         )
 
-    ax.set_xlabel(x_dim)
-    ax.set_ylabel(f"{par}")
-    ax.set_title(f"{which}")
-    ax.legend()
+        # this is horribly redundant code with dist_secondary_infections...
+
+        if which == "data":
+            mrk = "s"
+            zorder = 2
+        elif which == "data_rand":
+            mrk = "o"
+            zorder = 6
+        elif which == "data_rand_all":
+            mrk = "^"
+            zorder = 4
+
+        kwargs.setdefault("color", clrs.get(which, "black"))
+        kwargs.setdefault("marker", mrk)
+        kwargs.setdefault("zorder", zorder)
+        kwargs.setdefault("s", ms_default)
+
+        ax.scatter(
+            this_ndim_data[x_dim],
+            this_ndim_data,
+            clip_on=False,
+            **kwargs,
+        )
+
+    # customization for our paper case where tlat is the x axis
+    if x_dim == "latent":
+        ax.set_xlim(0.01, 7.99)
+        ax.set_ylim(0.0, 0.8)
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        ax.xaxis.set_ticks([1, 7])
+        ax.yaxis.set_minor_locator(MultipleLocator(0.25))
+    elif x_dim == "R0":
+        # match y, we will hack this together in post
+        ax.set_ylim(0.0, 0.8)
+        ax.set_xlim(1, 5)
+        ax.xaxis.set_ticks([1, 5])
+        ax.yaxis.set_minor_locator(MultipleLocator(0.25))
+        ax.yaxis.set_major_formatter(NullFormatter())
+
+    xlabels = dict(
+        R0="Reproduction number $R_0$",
+        infectious="Infectious period",
+        latent="Latent period",
+    )
+    ylabels = dict(
+        r="Dispersion parameter $r$", p="Probability of success $p$", disp="Dispersion"
+    )
+
+    if show_xlabel:
+        ax.set_xlabel(xlabels.get(x_dim, x_dim))
+    if show_ylabel:
+        ax.set_ylabel(ylabels.get(par, par))
+    if show_title:
+        ax.set_title(f"{which}")
+    if show_legend:
+        ax.legend()
 
     return ax
 
 
-def plot_dispersion_2d(x_dim, y_dim, off_dim_coord, par="r", which="data", ax=None, **plot_kwargs):
+def plot_dispersion_2d(
+    x_dim, y_dim, off_dim_coord, par="r", which="data", ax=None, **plot_kwargs
+):
     """
     2D Plot of the Maximumlikelihood fits of a Negative Binomial to Offspring
     distributions.
@@ -2455,7 +2644,7 @@ def plot_dispersion_2d(x_dim, y_dim, off_dim_coord, par="r", which="data", ax=No
     off_dim = [d for d in dims if d not in [x_dim, y_dim]][0]
 
     # get the data
-    ndim_data = _dispersion_data_prep({off_dim:off_dim_coord}, par, which)
+    ndim_data = _dispersion_data_prep({off_dim: off_dim_coord}, par, which)
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -2464,7 +2653,9 @@ def plot_dispersion_2d(x_dim, y_dim, off_dim_coord, par="r", which="data", ax=No
 
     # lets use xarrays 2d plotting for now. Wraps matplotlib.pyplot.pcolormesh()
     # https://docs.xarray.dev/en/stable/generated/xarray.plot.pcolormesh.html#xarray.plot.pcolormesh
-    ndim_data.plot(ax=ax, x=x_dim, y=y_dim, cbar_kwargs={"label": f"{par}"}, **plot_kwargs)
+    ndim_data.plot(
+        ax=ax, x=x_dim, y=y_dim, cbar_kwargs={"label": f"{par}"}, **plot_kwargs
+    )
 
     ax.set_title(f"{which} {off_dim}={off_dim_coord}")
 
@@ -2472,6 +2663,17 @@ def plot_dispersion_2d(x_dim, y_dim, off_dim_coord, par="r", which="data", ax=No
 
 
 def _dispersion_data_prep(coords, par, which):
+    """
+    # Parameters
+    coords: dict with "latent", "infectious", "R0" specifying the coordinate _labels_
+        (not indices)
+    par: str
+        "r" number of successes,
+        "p" probability of success
+        "disp" dispersion, 1/r
+        "mean"
+        "var"
+    """
 
     dims = ["R0", "infectious", "latent"]
     coords = coords.copy()
@@ -2485,24 +2687,24 @@ def _dispersion_data_prep(coords, par, which):
     # ├── range_infectious ........ ndarray  (16,)
     # └── range_latent ............ ndarray  (17,)
 
-
     r = data["NB_r"]
     p = data["NB_p"]
     # convert from julia to wiki definition
     p = 1 - p
+    # now, p is the probability of _failure_, r is the number of successes
     if par == "r":
         ndim_data = r
     elif par == "p":
         ndim_data = p
     elif par == "disp":
-        ndim_data = 1/r
+        ndim_data = 1 / r
     elif par == "mean":
         ndim_data = r * p / (1 - p)
     elif par == "var":
-        ndim_data = r * p / (1 - p)**2
+        ndim_data = r * p / (1 - p) ** 2
     elif par == "jz":
         mean = r * p / (1 - p)
-        var = r * p / (1 - p)**2
+        var = r * p / (1 - p) ** 2
         ndim_data = var / mean - 1
     else:
         raise KeyError(f"unknow parameter {par}. known: r, p, mean, var")
