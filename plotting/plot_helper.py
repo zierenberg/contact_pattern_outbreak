@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-09-20 17:35:53
+# @Last Modified: 2022-09-20 17:42:45
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -2660,6 +2660,92 @@ def plot_dispersion_2d(
     ax.set_title(f"{which} {off_dim}={off_dim_coord}")
 
     return ax
+
+def plot_dispersion_extinction_correlate(which="data", relative_to=None, period="2_3", ax=None, **plot_kwargs):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    # period, e.g. 2_3
+    latent, infectious = [float(p) for p in period.split("_")]
+    coords = dict(latent=latent, infectious=infectious)
+
+    # load the data for different r
+    dispersion = _dispersion_data_prep(coords, "disp", which)
+    extinction = _extinction_data_prep(which, latent, infectious)
+
+    # normalize?
+    if relative_to is not None:
+        ref_d = _dispersion_data_prep(coords, "disp", relative_to)
+        ref_e = _extinction_data_prep(relative_to, latent, infectious)
+        # lets have the very strong assumption that the shapes match
+        dispersion = dispersion / ref_d
+        extinction = extinction / ref_e
+
+    # R0 values between disp and ext are not guaranteed to match, cos different pipelines
+    legit_r = np.intersect1d(dispersion.R0.values, extinction.R0.values)
+    dispersion = dispersion.sel(R0=legit_r)
+    extinction = extinction.sel(R0=legit_r)
+
+    # now we can plot
+    kwargs = plot_kwargs.copy()
+    kwargs.setdefault("label", f"{which}")
+    kwargs.setdefault("color", clrs.get(which, "black"))
+    ax.scatter(
+        dispersion,
+        extinction,
+        clip_on=False,
+        **kwargs,
+    )
+
+    ax.set_xlabel("Dispersion $1/r$")
+    ax.set_ylabel(f"Extinction probability\n(relative to {relative_to})")
+
+    fig.tight_layout()
+
+    return ax
+
+
+
+def _extinction_data_prep(which, latent, infectious):
+    """
+    load extincition probability for different R0
+    note that in this h5f (other than usual) also the tlat tift where slightly off
+    2_1, 6_1, 2_3, 6_3
+    """
+    h5f = bnb.hi5.recursive_load(
+        "./out/analytic_survival_Copenhagen_filtered_15min.h5",
+        dtype=bdict,
+        keepdim=True,
+    )
+    # naming was a bit inconsistent, "data", "rand", "rand_all"
+    folder = which
+    # strip the "data_" prefix for the randomized ones
+    if len(folder) > 4:
+        folder = folder[5:]
+    path = f"{folder}/"
+    path += f"infectious_{infectious:.02f}_latent_{latent:.02f}/"
+    path += f"survival_probability_p"
+
+    # d1: probability to infect contact, d2: effective R, d3: survival probability
+    data = h5f[path]
+    x_prob = data[0, :]
+    x_repr = data[1, :]
+    y_surv = data[2, :]
+
+    # we load survivial probability but decided to plot extinction probability
+    y_ext = 1 - y_surv
+
+    # make our life easier by accessing by name
+    ndim_data = xr.DataArray(
+        data=y_ext[:, np.newaxis, np.newaxis],
+        dims=["R0", "infectious", "latent"],
+        coords={"R0": x_repr, "infectious": [infectious], "latent": [latent]},
+    )
+
+    return ndim_data
 
 
 def _dispersion_data_prep(coords, par, which):
