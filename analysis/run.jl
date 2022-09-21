@@ -51,9 +51,9 @@ function add_on(;
     mkpath(path_out)
     filename_data = @sprintf("%s/data_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
-    filename_rand = @sprintf("%s/surrogate_randomized_per_train_%s_filtered_%dmin.h5",
+    filename_rand = @sprintf("%s/data_randomized_per_train_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
-    filename_rand_all = @sprintf("%s/surrogate_randomized_all_%s_filtered_%dmin.h5",
+    filename_rand_all = @sprintf("%s/data_randomized_all_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
 
     range_latent = 0:0.5:8
