@@ -47,7 +47,7 @@ function add_on(;
     path_out = "./out";
     filter_out_incomplete=false;
     seed=1000;
-    _, ets, _ = load_processed_data(experiment, minimum_duration, path_dat, filter_out_incomplete=filter_out_incomplete);    range_R0 = default_range_R0
+    _, ets, _ = load_processed_data(experiment, minimum_duration, path_dat, filter_out_incomplete=filter_out_incomplete);
     mkpath(path_out)
     filename_data = @sprintf("%s/data_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
