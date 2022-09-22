@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-09-20 17:42:45
+# @Last Modified: 2022-09-21 16:39:46
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -353,6 +353,38 @@ def figure_2():
     sns.despine(ax=ax, trim=False, offset=3)
     save_ax(ax, f"{figure_path}/f2_dispersion_vs_latent.pdf")
 
+    # dispersion vs infectious
+    ax = None
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(latent=2, R0=3),
+        par="disp",
+        which="data_rand",
+    )
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(latent=2, R0=3),
+        par="disp",
+        which="data_rand_all",
+    )
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(latent=2, R0=3),
+        par="disp",
+        which="data",
+        color=clrs["n_low"],
+    )
+    ax = plot_dispersion_cutplane(
+        ax=ax,
+        coords=dict(latent=6, R0=3),
+        par="disp",
+        which="data",
+        color=clrs["n_high"],
+    )
+    bnb.plt.set_size(ax, w=1.6, h=1.0, l=1.0, b=0.6, t=0.2, r=0.1)
+    sns.despine(ax=ax, trim=False, offset=3)
+    save_ax(ax, f"{figure_path}/f2_dispersion_vs_infectious.pdf")
+
     # dispersion vs R0
     ax = None
     ax = plot_dispersion_cutplane(
@@ -381,7 +413,7 @@ def figure_2():
         which="data",
         color=clrs["n_high"],
     )
-    bnb.plt.set_size(ax, w=.4, h=1.0, l=0.3, b=0.6, t=0.2, r=0.1)
+    bnb.plt.set_size(ax, w=0.4, h=1.0, l=0.3, b=0.6, t=0.2, r=0.1)
     # sns.despine(ax=ax, trim=False, bottom=True, left=True, offset=3)
     sns.despine(ax=ax, trim=False, offset=3)
     # ax.xaxis.set_visible(False)
@@ -2041,7 +2073,7 @@ def plot_disease_dist_infectious_encounters(
                 if w == "data":
                     if pdx == 0:
                         color = clrs["n_low"]
-                        zorder = 3
+                        zorder = 2.5
                     elif pdx == 1:
                         color = clrs["n_high"]
                         zorder = 2
@@ -2066,7 +2098,15 @@ def plot_disease_dist_infectious_encounters(
                     plot_kwargs.setdefault("linestyle", (0, (2.0, 2.0)))
                     plot_kwargs.setdefault("dash_capstyle", "round")
 
+                log.info(num_encounter)
+                log.info(p_full)
+
+                # we want plot on log log scale, so do not plot data points that are zero
+                p_full[p_full == 0] = np.nan
+
                 ax.plot(num_encounter, p_full, color=color, zorder=zorder, **plot_kwargs)
+                # ax.fill_between(num_encounter, p_full - p_errs, p_full + p_errs, color=color, alpha=0.2, zorder=zorder, lw=0)
+
                 ref = _ev(num_encounter, p_full)
                 ax.axvline(
                     ref,
@@ -2585,16 +2625,33 @@ def plot_dispersion_cutplane(
             **kwargs,
         )
 
+        # crazy customization, but nvm
+        if x_dim == "latent" and which == "data":
+            vip_low, vip_high = 2, 6
+            kwargs.pop("color")
+            kwargs["s"] += 0.25
+            # kwargs["marker"] = "o"
+            temp = this_ndim_data.sel(latent=vip_low)
+            ax.scatter(temp[x_dim], temp, color=clrs["n_low"], clip_on=False, **kwargs)
+            temp = this_ndim_data.sel(latent=vip_high)
+            ax.scatter(temp[x_dim], temp, color=clrs["n_high"], clip_on=False, **kwargs)
+
     # customization for our paper case where tlat is the x axis
     if x_dim == "latent":
         ax.set_xlim(0.01, 7.99)
-        ax.set_ylim(0.0, 0.8)
+        ax.set_ylim(0.0, 1.5)
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        ax.xaxis.set_ticks([1, 7])
+        ax.yaxis.set_minor_locator(MultipleLocator(0.25))
+    elif x_dim == "infectious":
+        ax.set_xlim(0.01, 7.99)
+        ax.set_ylim(0.0, 1.5)
         ax.xaxis.set_minor_locator(MultipleLocator(1))
         ax.xaxis.set_ticks([1, 7])
         ax.yaxis.set_minor_locator(MultipleLocator(0.25))
     elif x_dim == "R0":
         # match y, we will hack this together in post
-        ax.set_ylim(0.0, 0.8)
+        ax.set_ylim(0.0, 1.5)
         ax.set_xlim(1, 5)
         ax.xaxis.set_ticks([1, 5])
         ax.yaxis.set_minor_locator(MultipleLocator(0.25))
@@ -2661,7 +2718,43 @@ def plot_dispersion_2d(
 
     return ax
 
-def plot_dispersion_extinction_correlate(which="data", relative_to=None, period="2_3", ax=None, **plot_kwargs):
+
+def wrapper():
+    ax = None
+    for idx in range(1, 6):
+        ax = plot_dispersion_extinction_correlate(
+            coords=dict(R0=idx),
+            which="data_rand",
+            relative_to=None,
+            ax=ax,
+            label=f"_R={idx}",
+            s=1,
+        )
+        ax = plot_dispersion_extinction_correlate(
+            coords=dict(R0=idx),
+            which="data",
+            relative_to=None,
+            ax=ax,
+            color=f"C{idx}",
+            label=f"R={idx}",
+            s=1,
+        )
+        ax = plot_dispersion_extinction_correlate(
+            coords=dict(R0=idx),
+            which="data_rand_all",
+            relative_to=None,
+            ax=ax,
+            label=f"_R={idx}",
+            s=1,
+        )
+
+
+
+    return ax
+
+def plot_dispersion_extinction_correlate_old(
+    which="data", relative_to=None, period="2_3", ax=None, **plot_kwargs
+):
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -2674,20 +2767,22 @@ def plot_dispersion_extinction_correlate(which="data", relative_to=None, period=
 
     # load the data for different r
     dispersion = _dispersion_data_prep(coords, "disp", which)
-    extinction = _extinction_data_prep(which, latent, infectious)
+    extinction = _extinction_data_prep2(coords, which)
 
     # normalize?
     if relative_to is not None:
         ref_d = _dispersion_data_prep(coords, "disp", relative_to)
-        ref_e = _extinction_data_prep(relative_to, latent, infectious)
+        ref_e = _extinction_data_prep2(coords, relative_to)
         # lets have the very strong assumption that the shapes match
-        dispersion = dispersion / ref_d
-        extinction = extinction / ref_e
+        # dispersion = dispersion / ref_d
+        extinction = extinction - ref_e
 
     # R0 values between disp and ext are not guaranteed to match, cos different pipelines
     legit_r = np.intersect1d(dispersion.R0.values, extinction.R0.values)
     dispersion = dispersion.sel(R0=legit_r)
     extinction = extinction.sel(R0=legit_r)
+
+    log.info(extinction)
 
     # now we can plot
     kwargs = plot_kwargs.copy()
@@ -2708,9 +2803,55 @@ def plot_dispersion_extinction_correlate(which="data", relative_to=None, period=
     return ax
 
 
+def plot_dispersion_extinction_correlate(
+    coords, which="data", relative_to=None, ax=None, **plot_kwargs
+):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    # load the data for different r
+    dispersion = _dispersion_data_prep(coords, "disp", which)
+    extinction = _extinction_data_prep2(coords, which)
+
+    # normalize?
+    if relative_to is not None:
+        ref_d = _dispersion_data_prep(coords, "disp", relative_to)
+        ref_e = _extinction_data_prep2(coords, relative_to)
+        # lets have the very strong assumption that the shapes match
+        # dispersion = dispersion / ref_d
+        extinction = extinction / ref_e
+
+    # R0 values between disp and ext are not guaranteed to match, cos different pipelines
+    for key in ["R0", "infectious", "latent"]:
+        legit = np.intersect1d(dispersion[key].values, extinction[key].values)
+        dispersion = dispersion.sel({key: legit})
+        extinction = extinction.sel({key: legit})
+
+    # now we can plot
+    kwargs = plot_kwargs.copy()
+    kwargs.setdefault("label", f"{which}")
+    kwargs.setdefault("color", clrs.get(which, "black"))
+    ax.scatter(
+        dispersion,
+        extinction,
+        clip_on=False,
+        **kwargs,
+    )
+
+    ax.set_xlabel("Dispersion $1/r$")
+    ax.set_ylabel(f"Extinction probability\n(relative to {relative_to})")
+
+    fig.tight_layout()
+
+    return ax
+
 
 def _extinction_data_prep(which, latent, infectious):
     """
+    this loads from the older file format, where we did not have a detailed ndim sweep.
     load extincition probability for different R0
     note that in this h5f (other than usual) also the tlat tift where slightly off
     2_1, 6_1, 2_3, 6_3
@@ -2744,6 +2885,45 @@ def _extinction_data_prep(which, latent, infectious):
         dims=["R0", "infectious", "latent"],
         coords={"R0": x_repr, "infectious": [infectious], "latent": [latent]},
     )
+
+    return ndim_data
+
+
+def _extinction_data_prep2(coords, which):
+    """
+    # Parameters
+    coords: dict with "latent", "infectious", "R0" specifying the coordinate _labels_
+        (not indices)
+    """
+
+    dims = ["R0", "infectious", "latent"]
+    coords = coords.copy()
+
+    file = file_path_shorthand(which)
+    group = "/disease/delta/scan_survival_probability"
+    data = bnb.hi5.recursive_load(file, group, keepdim=True)
+    # ├── survival_probability..... ndarray  (5, 16, 17)
+    # ├── range_R0 ................ ndarray  (5,)
+    # ├── range_infectious ........ ndarray  (16,)
+    # └── range_latent ............ ndarray  (17,)
+
+    # convert to extinction probability
+    ndim_data = 1 - data["survival_probability"]
+
+    # we want lists in the coordinates for our xarray selection to work
+    for k, v in coords.items():
+        if not isinstance(v, (list, np.ndarray, tuple)):
+            coords[k] = [v]
+
+    # make our life easier by accessing dimensions by name
+    ndim_data = xr.DataArray(
+        data=ndim_data,
+        dims=dims,
+        coords={k: data[f"range_{k}"] for k in dims},
+    )
+
+    # select the subset
+    ndim_data = ndim_data.sel(coords, method="nearest")
 
     return ndim_data
 
