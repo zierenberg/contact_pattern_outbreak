@@ -12,7 +12,7 @@ set (overwrite) a description as an attribute for a hdf5 object
 function myh5desc(filename, name, description::String)
     name = replace(name, r"\/+" => "/")
     filename = replace(filename, r"\/+" => "/")
-    fid = h5open(filename, "cw")
+    fid = h5open(filename, "cw", swmr=true)
     obj = fid[name]
     if haskey(attributes(obj), "description")
         delete_attribute(obj, "description")
@@ -29,13 +29,11 @@ function myh5write(filename, datasetname, data::AbstractArray)
     datasetname = replace(datasetname, r"\/+" => "/")
     filename = replace(filename, r"\/+" => "/")
 
-    h5open(filename, "cw") do fid
+    h5open(filename, "cw", swmr=true) do fid
         if haskey(fid, datasetname)
-            d = fid[datasetname]
-            d = data
-        else
-            fid[datasetname] = data
+            delete_object(fid, datasetname)
         end
+        fid[datasetname, compress=4] = data
     end
 end
 myh5write(filename, datasetname, data::Number) = myh5write(filename, datasetname, [data,])

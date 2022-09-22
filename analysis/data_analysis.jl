@@ -629,7 +629,7 @@ function analyse_dispersion_scan_delta(
                 )
             );
             for (k, R0) in enumerate(range_R0)
-                println(" ... ... ", latent, " ", infectious, " ", R0)
+                # println(" ... ... ", latent, " ", infectious, " ", R0)
                 p_inf = R0/expectation(edist)
                 if p_inf > 1
                     result_r[i,j,k], result_p[i,j,k] = (NaN,NaN)
