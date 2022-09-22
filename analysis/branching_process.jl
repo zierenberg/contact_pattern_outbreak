@@ -247,9 +247,13 @@ function fit_mle_negative_binomial(samples;
     res = optimize(f_opt, xmin, xmax, x0)
     return NegativeBinomial(Optim.minimizer(res)...)
 end
-function fit_mle_negative_binomial(rng::AbstractRNG, distribution, numsamples::Int)
+function fit_mle_negative_binomial(rng::AbstractRNG, distribution, numsamples::Int;
+        x0=[1,0.1],
+        xmin=[0,0],
+        xmax=[Inf,1-1e-5]
+    )
     samples = [rand(rng, distribution) for i in 1:numsamples];
-    return fit_mle_negative_binomial(samples)
+    return fit_mle_negative_binomial(samples,x0=x0,xmin=xmin,xmax=xmax)
 end
 
 
