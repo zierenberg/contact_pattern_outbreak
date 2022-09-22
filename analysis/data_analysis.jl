@@ -658,6 +658,59 @@ function analyse_dispersion_scan_delta(
 end
 
 
+function analyse_survival_scan_delta(
+        range_latent_in_days,
+        range_infectious_in_days,
+        range_R0,
+        ets::encounter_trains{I,T1},
+        filename::String,
+        root::String;
+    ) where {I,T1, T2}
+    result_r  = Array{Float64,3}(undef,
+                                 length(range_latent_in_days),
+                                 length(range_infectious_in_days),
+                                 length(range_R0)
+                                )
+    result  = Array{Float64,3}(undef,
+                                 length(range_latent_in_days),
+                                 length(range_infectious_in_days),
+                                 length(range_R0)
+                                )
+    print("... scan survival probabilities for delta disease (this may take a while)\n")
+    @showprogress 1 for (i, latent) in enumerate(range_latent_in_days)
+        for (j, infectious) in enumerate(range_infectious_in_days)
+            disease_model = DeltaDiseaseModel(seconds_from_days(latent),
+                                              seconds_from_days(infectious));
+            edist = EmpiricalDistribution(
+                distribution_from_samples_infectious_encounter(
+                    samples_infectious_encounter(disease_model, ets)
+                )
+            );
+            for (k, R0) in enumerate(range_R0)
+                p_inf = R0/expectation(edist)
+                if p_inf > 1
+                    result[i,j,k] = NaN
+                else
+                    try
+                        result[i,j,k] = solve_survival_probability(edist, p_inf)
+                    catch e
+                        result[i,j,k] = NaN
+                    end
+                end
+            end
+        end
+    end
+
+    myh5write(filename, @sprintf("%s/scan_survival_probability/survival_probability", root), result)
+    myh5write(filename, @sprintf("%s/scan_survival_probability/range_R0", root), collect(range_R0))
+    myh5write(filename, @sprintf("%s/scan_survival_probability/range_latent", root), collect(range_latent_in_days))
+    myh5write(filename, @sprintf("%s/scan_survival_probability/range_infectious", root), collect(range_infectious_in_days))
+    myh5desc(filename, @sprintf("%s/scan_survival_probability", root),
+             "scan over different latent periods, infectious periods, and R0.
+             d1: latent period, d2: infectious period, d3: R0")
+    return
+end
+
 ###############################################################################
 ###############################################################################
 ### quick default
