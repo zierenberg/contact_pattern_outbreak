@@ -27,5 +27,9 @@ function surrogate_randomize_all(
         rand_time  = rand(rng, 0:timestep(ets):duration(ets))
         push!(times_surrogate[rand_train], rand_time)
     end
+    # sort trains in place
+    for i in 1:length(times_surrogate)
+        sort!(times_surrogate[i])
+    end
     return encounter_trains(times_surrogate, ids(ets), duration(ets), timestep(ets))
 end
