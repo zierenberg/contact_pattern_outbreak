@@ -636,7 +636,7 @@ function analyse_dispersion_scan_delta(
                 else
                     offspring_dist = offspring_distribution(edist,p_inf);
                     try
-                        NB = fit_mle_negative_binomial(MersenneTwister(seed_samples), offspring_dist, num_samples);
+                        NB = fit_mle_negative_binomial(MersenneTwister(seed_samples), offspring_dist);
                         result_r[i,j,k], result_p[i,j,k] = params(NB)
                     catch e
                         result_r[i,j,k], result_p[i,j,k] = (NaN,NaN)
