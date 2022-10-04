@@ -229,8 +229,6 @@ using Optim
     fit_mle_negative_binomial(`samples`)
 
 find negative binomial distribution that maximizes the likelihood of `samples`.
-Instead of `samples`, one can also pass `rng`, `distribution` `numsamples` to
-generate samples
 
 # Example
 fit_mle_negative_binomal(samples,x0=[1,0.5])
@@ -247,6 +245,15 @@ function fit_mle_negative_binomial(samples;
     res = optimize(f_opt, xmin, xmax, x0)
     return NegativeBinomial(Optim.minimizer(res)...)
 end
+"""
+    fit_mle_negative_binomial(`dist`)
+
+find negative binomial distribution that maximizes the likelihood of an empirical distribution. 
+Numerically this is done by minimizing the Kullback-Leibler divergence between the empirical distribution and a negative binomial distribution.
+
+# Example
+fit_mle_negative_binomal(samples,x0=[1,0.5])
+"""
 function fit_mle_negative_binomial(rng::AbstractRNG, dist;
         x0=[1,0.1],
         xmin=[0,0],

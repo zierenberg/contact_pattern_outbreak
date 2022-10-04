@@ -618,7 +618,7 @@ function analyse_dispersion_scan_delta(
                                  length(range_infectious_in_days),
                                  length(range_R0)
                                 )
-    print("... scan offpsring dispersion for delta disease (this may take a while)\n")
+    print("... scan offpsring dispersion for delta disease\n")
     @showprogress 1 for (i, latent) in enumerate(range_latent_in_days)
         for (j, infectious) in enumerate(range_infectious_in_days)
             disease_model = DeltaDiseaseModel(seconds_from_days(latent),
