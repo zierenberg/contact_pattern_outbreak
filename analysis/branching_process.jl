@@ -158,6 +158,45 @@ Base.rand(pdist::ProbabilisticOffspringDistribution) = rand(Random.GLOBAL_RNG, p
 
 
 """
+    offspring_distribution(edist, p)
+
+empirical offspring distribution from empirical distribution of pot. inf. encounters.
+
+#example
+_, ets_data, _ = load_processed_data();
+ets_rand = surrogate_randomize_per_train(ets_data, 1000);
+T_lat = 2; T_ift = 3;
+disease_model = DeltaDiseaseModel(seconds_from_days(T_lat), seconds_from_days(T_ift))
+dist_data = distribution_from_samples_infectious_encounter(
+            samples_infectious_encounter(disease_model, ets_data)
+       );
+dist_rand = distribution_from_samples_infectious_encounter(
+            samples_infectious_encounter(disease_model, ets_rand)
+       );
+edist_data = EmpiricalDistribution(dist_data);
+edist_rand = EmpiricalDistribution(dist_rand);
+R0 = 3
+p_data = R0/expectation(edist_data);
+p_rand = R0/expectation(edist_rand);
+offspring_dist_data = offspring_distribution(edist_data,p_data);
+offspring_dist_rand = offspring_distribution(edist_rand,p_rand);
+"""
+function offspring_distribution(edist::EmpiricalDistribution{T}, p::Number) where T
+    if p > 1
+        return NaN
+    end
+    offspring_values = collect(0:maximum(edist.values))
+    offspring_probs = zeros(length(offspring_values))
+    for (i,x) in enumerate(offspring_values)
+        for n in x:edist.values[end]
+            offspring_probs[i] += edist[n] * binompdf(n, p, x)
+        end
+    end
+    offspring_dist = EmpiricalDistribution(offspring_values, offspring_probs)
+    return offspring_dist
+end
+
+"""
     solve_survival_probability(edist, p)
 
 semi-analytical solution of the survival probability using the empirical
@@ -174,22 +213,57 @@ The asymptotic survival probability is then obtained by numerically solving
 ``\\theta=\\pi(\\theta)``
 
 """
-#TODO: constrain that edist is only for integer elements
 function solve_survival_probability(edist::EmpiricalDistribution{T}, p::Number) where T
-    offspring_values = collect(0:maximum(edist.values))
-    offspring_probs = zeros(length(offspring_values))
-    for (i,x) in enumerate(offspring_values)
-        for n in x:edist.values[end]
-            offspring_probs[i] += edist[n] * binompdf(n, p, x)
-        end
-    end
-    offspring_dist = EmpiricalDistribution(offspring_values, offspring_probs)
+    offspring_dist = offspring_distribution(edist, p)
 
     # extinction probability is given by the smalles root to x-pfg(x)
     p_ext = find_zero(x->x - _pgf(x, offspring_dist), 0.0)
 
     # by definition one root is at x=1, so that needs to be excluded.
     return 1 - p_ext
+end
+
+
+using Optim
+"""
+    fit_mle_negative_binomial(`samples`)
+
+find negative binomial distribution that maximizes the likelihood of `samples`.
+
+# Example
+fit_mle_negative_binomal(samples,x0=[1,0.5])
+"""
+function fit_mle_negative_binomial(samples;
+        x0=[1,0.1],
+        xmin=[0,0],
+        xmax=[Inf,1]
+    )
+    # goal is to maximize the likelihood (product of likelihoods), which is the
+    # same as to minimize the sum of loglikelihoods (log of pdf of sample given
+    # distribution)
+    f_opt(x) = -1*sum(log.(pdf.(NegativeBinomial(x...), samples)));
+    res = optimize(f_opt, xmin, xmax, x0)
+    return NegativeBinomial(Optim.minimizer(res)...)
+end
+"""
+    fit_mle_negative_binomial(`dist`)
+
+find negative binomial distribution that maximizes the likelihood of an empirical distribution. 
+Numerically this is done by minimizing the Kullback-Leibler divergence between the empirical distribution and a negative binomial distribution.
+
+# Example
+fit_mle_negative_binomal(samples,x0=[1,0.5])
+"""
+function fit_mle_negative_binomial(rng::AbstractRNG, dist;
+        x0=[1,0.1],
+        xmin=[0,0],
+        xmax=[Inf,1-1e-5]
+    )
+    vals = dist.values[dist.probabilities.>0]
+    probs = dist.probabilities[dist.probabilities.>0]
+    f_opt(x) = sum(probs .* (log.(probs) .-  logpdf.(NegativeBinomial(x...), vals)) ) 
+    res = optimize(f_opt, xmin, xmax, x0)
+    return NegativeBinomial(Optim.minimizer(res)...)
 end
 
 

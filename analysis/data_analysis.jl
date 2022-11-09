@@ -23,6 +23,7 @@ include("surrogate.jl")
 
 default_range_latent     = 0:0.05:8
 default_range_infectious = 0.05:0.05:8
+default_range_R0 = 1.0:1.0:5.0
 default_support_crate = 0:300:seconds_from_days(7*1.5)
 
 """
@@ -50,9 +51,9 @@ function analyse_all(
     mkpath(path_out)
     filename_data = @sprintf("%s/data_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
-    filename_rand = @sprintf("%s/surrogate_randomized_per_train_%s_filtered_%dmin.h5",
+    filename_rand = @sprintf("%s/data_randomized_per_train_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
-    filename_rand_all = @sprintf("%s/surrogate_randomized_all_%s_filtered_%dmin.h5",
+    filename_rand_all = @sprintf("%s/data_randomized_all_%s_filtered_%dmin.h5",
         path_out, label(experiment), minimum_duration/60)
 
     if filter_out_incomplete
@@ -109,6 +110,10 @@ function analyse_all(
         myh5write(filename_rand_all,@sprintf("%s/trains/",root), sur_rand_all)
         analyse_temporal_features_of_encounter_train(sur_rand_all, filename_rand_all, root, support_crate=support_crate)
         analyse_infectious_encounter_scan_delta(range_latent, range_infectious, sur_rand_all, filename_rand_all, @sprintf("%s/disease/delta", root))
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(2), seconds_from_days(3)), sur_rand_all, filename_rand_all, "/disease/delta_2_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(6), seconds_from_days(3)), sur_rand_all, filename_rand_all, "/disease/delta_6_3")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1), seconds_from_days(0.5)), sur_rand_all, filename_rand_all, "/disease/delta_1_0.5")
+        analyse_infectious_encounter_detail(DeltaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5)), sur_rand_all, filename_rand_all, "/disease/delta_1.5_0.5")
     end
 
 
@@ -159,6 +164,8 @@ function analyse_all(
         analyse_infectious_encounter_detail(GammaDiseaseModel(seconds_from_days(1.5), seconds_from_days(0.5), 10), sur, filename_rand, "/disease/gamma_1.5_0.5/k_10.0")
     end
 
+    ##########################################################################
+    # dispersion
 
     return
 end
@@ -176,7 +183,7 @@ function analyse_temporal_features_of_contact_activity(
         times=0:60*60:seconds_from_days(7)           # 1-week contact rate (taken directly from first argument, seems to work)
 
     ) where {I,T}
-    println("writing to ", root)
+    println("writing to ", filename, " dset ", root)
     println("... coefficient of variation")
     cv, cvj, cverr = coefficient_variation(cas, jackknife_error=true)
     myh5write(filename, @sprintf("%s/coefficient_variation", root), hcat(cv, cvj, cverr))
@@ -224,7 +231,7 @@ end
 ###############################################################################
 ### analyse contact stuff
 function  analyse_contact_duration(list_contacts, experiment::ContactData, filename::String, root::String)
-    println("writing to ", root)
+    println("writing to ", filename, " dset ", root)
     list_durations = [getindex.(contacts, 2) for contacts in list_contacts];
     # remove lists with zero elements because they 1) do not contribute to the
     # statistics of the durations and 2) thereby break the jackknife routine
@@ -266,11 +273,11 @@ function analyse_temporal_features_of_encounter_train(
         # 1.5-week conditional contact rate
         support_crate = 0:timestep(ets):seconds_from_days(7*1.5),
     ) where {I,T}
-    println("writing to ", root)
+    println("writing to ", filename, " dset ", root)
 
     println("... distribution total number encounter per train")
     edges=0:1:700
-    f_weights(x) = normalize!(fit(Histogram{Float64}, length.(trains(x)), edges)).weights
+    f_weights(x) = normalize!(it(Histogram{Float64}, length.(trains(x)), edges)).weights
     w, wj, werr = jackknife(f_weights, ets)
     myh5write(filename, @sprintf("%s/distribution_total_number_encounter", root), hcat(edges[1:end-1], w, wj, werr))
     myh5desc(filename, @sprintf("%s/distribution_total_number_encounter", root),
@@ -590,8 +597,119 @@ function analyse_infectious_encounter_scan_gamma(
 end
 
 
+function analyse_dispersion_scan_delta(
+        range_latent_in_days,
+        range_infectious_in_days,
+        range_R0,
+        ets::encounter_trains{I,T1},
+        filename::String,
+        root::String;
+        # optional
+        seed_samples=1000,
+        num_samples=Int(1e3)
+    ) where {I,T1, T2}
+    result_r  = Array{Float64,3}(undef,
+                                 length(range_latent_in_days),
+                                 length(range_infectious_in_days),
+                                 length(range_R0)
+                                )
+    result_p  = Array{Float64,3}(undef,
+                                 length(range_latent_in_days),
+                                 length(range_infectious_in_days),
+                                 length(range_R0)
+                                )
+    print("... scan offpsring dispersion for delta disease\n")
+    @showprogress 1 for (i, latent) in enumerate(range_latent_in_days)
+        for (j, infectious) in enumerate(range_infectious_in_days)
+            disease_model = DeltaDiseaseModel(seconds_from_days(latent),
+                                              seconds_from_days(infectious));
+            edist = EmpiricalDistribution(
+                distribution_from_samples_infectious_encounter(
+                    samples_infectious_encounter(disease_model, ets)
+                )
+            );
+            for (k, R0) in enumerate(range_R0)
+                # println(" ... ... ", latent, " ", infectious, " ", R0)
+                p_inf = R0/expectation(edist)
+                if p_inf > 1
+                    result_r[i,j,k], result_p[i,j,k] = (NaN,NaN)
+                else
+                    offspring_dist = offspring_distribution(edist,p_inf);
+                    try
+                        NB = fit_mle_negative_binomial(MersenneTwister(seed_samples), offspring_dist);
+                        result_r[i,j,k], result_p[i,j,k] = params(NB)
+                    catch e
+                        result_r[i,j,k], result_p[i,j,k] = (NaN,NaN)
+                    end
+                end
+            end
+        end
+    end
+
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/NB_r", root), result_r)
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/NB_p", root), result_p)
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/range_R0", root), collect(range_R0))
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/range_latent", root), collect(range_latent_in_days))
+    myh5write(filename, @sprintf("%s/scan_offspring_as_negative_binomial/range_infectious", root), collect(range_infectious_in_days))
+    myh5desc(filename, @sprintf("%s/scan_offspring_as_negative_binomial", root),
+             "scan over different latent periods, nfectious periods, and R0 to fit
+             the offspring distribution with a negative biomial (r,p), d1: latent period, d2: infectious period, d3: R0")
+    return
+end
 
 
+function analyse_survival_scan_delta(
+        range_latent_in_days,
+        range_infectious_in_days,
+        range_R0,
+        ets::encounter_trains{I,T1},
+        filename::String,
+        root::String;
+    ) where {I,T1, T2}
+    result_r  = Array{Float64,3}(undef,
+                                 length(range_latent_in_days),
+                                 length(range_infectious_in_days),
+                                 length(range_R0)
+                                )
+    result  = Array{Float64,3}(undef,
+                                 length(range_latent_in_days),
+                                 length(range_infectious_in_days),
+                                 length(range_R0)
+                                )
+    print("... scan survival probabilities for delta disease (this may take a while)\n")
+    @showprogress 1 for (i, latent) in enumerate(range_latent_in_days)
+        for (j, infectious) in enumerate(range_infectious_in_days)
+            disease_model = DeltaDiseaseModel(seconds_from_days(latent),
+                                              seconds_from_days(infectious));
+            edist = EmpiricalDistribution(
+                distribution_from_samples_infectious_encounter(
+                    samples_infectious_encounter(disease_model, ets)
+                )
+            );
+            for (k, R0) in enumerate(range_R0)
+                p_inf = R0/expectation(edist)
+                if p_inf > 1
+                    result[i,j,k] = NaN
+                else
+                    try
+                        result[i,j,k] = solve_survival_probability(edist, p_inf)
+                    catch e
+                        result[i,j,k] = NaN
+                    end
+                end
+            end
+        end
+    end
+
+    myh5write(filename, @sprintf("%s/scan_survival_probability/survival_probability", root), result)
+    myh5write(filename, @sprintf("%s/scan_survival_probability/range_R0", root), collect(range_R0))
+    myh5write(filename, @sprintf("%s/scan_survival_probability/range_latent", root), collect(range_latent_in_days))
+    myh5write(filename, @sprintf("%s/scan_survival_probability/range_infectious", root), collect(range_infectious_in_days))
+    myh5desc(filename, @sprintf("%s/scan_survival_probability", root),
+             "scan over different latent periods, infectious periods, and R0.
+             d1: latent period, d2: infectious period, d3: R0")
+    return
+end
 
 ###############################################################################
 ###############################################################################
