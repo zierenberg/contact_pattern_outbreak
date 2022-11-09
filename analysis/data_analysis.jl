@@ -618,7 +618,7 @@ function analyse_dispersion_scan_delta(
                                  length(range_infectious_in_days),
                                  length(range_R0)
                                 )
-    print("... scan offpsring dispersion for delta disease (this may take a while)\n")
+    print("... scan offpsring dispersion for delta disease\n")
     @showprogress 1 for (i, latent) in enumerate(range_latent_in_days)
         for (j, infectious) in enumerate(range_infectious_in_days)
             disease_model = DeltaDiseaseModel(seconds_from_days(latent),
@@ -636,7 +636,7 @@ function analyse_dispersion_scan_delta(
                 else
                     offspring_dist = offspring_distribution(edist,p_inf);
                     try
-                        NB = fit_mle_negative_binomial(MersenneTwister(seed_samples), offspring_dist, num_samples);
+                        NB = fit_mle_negative_binomial(MersenneTwister(seed_samples), offspring_dist);
                         result_r[i,j,k], result_p[i,j,k] = params(NB)
                     catch e
                         result_r[i,j,k], result_p[i,j,k] = (NaN,NaN)
