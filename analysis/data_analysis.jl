@@ -277,7 +277,7 @@ function analyse_temporal_features_of_encounter_train(
 
     println("... distribution total number encounter per train")
     edges=0:1:700
-    f_weights(x) = normalize!(it(Histogram{Float64}, length.(trains(x)), edges)).weights
+    f_weights(x) = normalize!(fit(Histogram{Float64}, length.(trains(x)), edges)).weights
     w, wj, werr = jackknife(f_weights, ets)
     myh5write(filename, @sprintf("%s/distribution_total_number_encounter", root), hcat(edges[1:end-1], w, wj, werr))
     myh5desc(filename, @sprintf("%s/distribution_total_number_encounter", root),
