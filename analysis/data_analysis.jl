@@ -78,7 +78,7 @@ function analyse_all(
     ###########################################################################
     # temporal features
 
-    lod >= 1 && analyse_temporal_features_of_encounter_train(ets, filename_data, "/", support_crate=support_crate)
+    lod >= 0 && analyse_temporal_features_of_encounter_train(ets, filename_data, "/", support_crate=support_crate)
     lod >= 2 && analyse_contact_duration(list_contacts, experiment, filename_data, "/extra/contacts")
     lod >= 2 && analyse_temporal_features_of_contact_activity(cas, filename_data, "/extra/contact_activity")
 
