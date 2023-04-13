@@ -539,7 +539,7 @@ function analyse_infectious_encounter_scan_delta(
         root::String;
         # optional
         seed=1000,
-       ) where {I,T1, T2}
+       ) where {I,T1}
     print("... scan mean number infectious encounters for delta disease\n")
 
     # scan
@@ -607,7 +607,7 @@ function analyse_dispersion_scan_delta(
         # optional
         seed_samples=1000,
         num_samples=Int(1e3)
-    ) where {I,T1, T2}
+    ) where {I,T1}
     result_r  = Array{Float64,3}(undef,
                                  length(range_latent_in_days),
                                  length(range_infectious_in_days),
@@ -665,7 +665,7 @@ function analyse_survival_scan_delta(
         ets::encounter_trains{I,T1},
         filename::String,
         root::String;
-    ) where {I,T1, T2}
+    ) where {I,T1}
     result_r  = Array{Float64,3}(undef,
                                  length(range_latent_in_days),
                                  length(range_infectious_in_days),

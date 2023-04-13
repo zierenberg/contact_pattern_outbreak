@@ -715,7 +715,7 @@ generating function for the data-driven branching process.
 experiment=Copenhagen(); minimum_duration = 15*60; path_dat="./dat"; seed_rand=1000;
 T_lat=2;T_ift=3
 """
-function analytic_survival_probability(
+function analytic_survival_probability(;
         #optional
         experiment=Copenhagen(),
         minimum_duration = 15*60,

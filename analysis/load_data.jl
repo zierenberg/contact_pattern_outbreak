@@ -353,7 +353,7 @@ ids(cas::contact_activities{I,T}) where {I,T} = cas._ids
 #
 activities(cas::contact_activities) = cas._activities
 #
-times(cas::contact_activities) where {I,T} = cas._time_range
+times(cas::contact_activities) = cas._time_range
 #
 Base.length(cas::contact_activities{I,T}) where {I,T} = length(cas._activities)
 #
@@ -458,7 +458,11 @@ end
 #isolated interaction time the duration is 0. This convention considers that an
 #interaction in a single timestep has vanishing probability to last exactly for
 #1 time step.
-function _contacts_per_tuple!(c_list::Vector{Tuple{T, T}}, colocation_times::Vector{T}, separation_threshold::T) where {I,T}
+function _contacts_per_tuple!(
+        c_list::Vector{Tuple{T, T}}, 
+        colocation_times::Vector{T}, 
+        separation_threshold::T
+    ) where {T}
     if (length(colocation_times) == 0)
         return
     end

@@ -362,7 +362,9 @@ function inter_encounter_intervals(ets::encounter_trains{I,T})::Vector{Vector{T}
     return list_dts
 end
 
-function inter_encounter_intervals(trains::Vector{Vector{T}})::Vector{Vector{T}} where {I,T}
+function inter_encounter_intervals(
+        trains::Vector{Vector{T}}
+    )::Vector{Vector{T}} where {T}
     list_dts = Vector{T}[]
     for train in trains
         dts = diff(train)
