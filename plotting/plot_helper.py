@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-09-29 11:27:46
+# @Last Modified: 2023-04-14 09:32:54
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -135,7 +135,7 @@ import bitsandbobs as bnb
 # enable code formatting with black
 # fmt: on
 
-figure_path = "./figs/v3"
+figure_path = "./figs/v4"
 
 clrs = dict(
     n_high="#C31B2B",
@@ -162,6 +162,22 @@ clrs = dict(
 
 
 def file_path_shorthand(which):
+    """
+    Helper to access files conveniently.
+
+    which is a string that can be one of the following:
+    - 'data'
+    - 'psn'
+    - 'wbl'
+    - 'tlrd'
+    - 'wbl_unweighted'
+    - 'psn_unweighted'
+
+    and to get randomized controls add
+    - '_rand' for randomized but keeping encounters per train
+    - '_rand_all' for fully randomized across trains and individuals
+
+    """
     path = "./out/"
     # add all the base paths
     if which.startswith("data"):
@@ -263,8 +279,8 @@ def main_manuscript():
 def figure_1():
     log.info("Figure 1")
 
-    # ax = plot_etrain_rasters()
-    # save_ax(ax, f"{figure_path}/f1_trains.pdf")
+    ax = plot_etrain_rasters()
+    save_ax(ax, f"{figure_path}/f1_trains.pdf")
 
     kwargs = default_plot_kwargs("data_rand", for_errorbars=False)
     kwargs["zorder"] = 2
@@ -273,11 +289,14 @@ def figure_1():
     ax = plot_dist_encounters_per_train(
         which=["data", "data_rand"], plot_kwargs={"data_rand": kwargs}
     )
+
+    _set_size(ax, 4.0 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f1_dist_per_train.pdf")
 
     ax = plot_dist_encounters_per_day(
         which=["data", "data_rand"], plot_kwargs={"data_rand": kwargs}
     )
+    _set_size(ax, 4.0 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f1_dist_per_day.pdf")
 
 
@@ -337,7 +356,7 @@ def figure_2():
     ax = plot_disease_dist_secondary_infections(
         ax=ax, R=3.0, which=["data"], periods="2_3"
     )
-    bnb.plt.set_size(ax, w=2.1, h=1.6, l=1.0, b=0.6, t=0.2, r=0.1)
+    bnb.plt.set_size(ax, w=4.5, h=1.6, l=1.0, b=0.6, t=0.2, r=0.1)
     sns.despine(ax=ax, trim=False, offset=3)
     save_ax(ax, f"{figure_path}/f2_offspring_distribution.pdf")
 
@@ -411,7 +430,7 @@ def figure_2():
         par="disp",
         which="data",
     )
-    bnb.plt.set_size(ax, w=1.4, h=0.8, l=0.6, b=0.6, t=0.2, r=0.1)
+    bnb.plt.set_size(ax, w=1.4*1.2, h=1.2, l=0.6, b=0.6, t=0.25, r=0.1)
     sns.despine(ax=ax, trim=False, offset=3)
     save_ax(ax, f"{figure_path}/f2_dispersion_vs_latent.pdf")
 
@@ -434,8 +453,8 @@ def figure_2():
         coords=dict(latent=2, R0=3),
         par="disp",
         which="data",
-        marker = "s",
-        s = ms_default *1.25,
+        marker="s",
+        s=ms_default * 1.25,
     )
     ax = plot_dispersion_cutplane(
         ax=ax,
@@ -444,10 +463,10 @@ def figure_2():
         which="data",
         # use hollow symbols for tlat = 6
         facecolor="white",
-        marker = "s",
-        s = ms_default *1.25,
+        marker="s",
+        s=ms_default * 1.25,
     )
-    bnb.plt.set_size(ax, w=1.255, h=0.8, l=0.6, b=0.6, t=0.2, r=0.1)
+    bnb.plt.set_size(ax, w=1.255*1.2, h=1.2, l=0.6, b=0.6, t=0.25, r=0.1)
     sns.despine(ax=ax, trim=False, offset=3)
     save_ax(ax, f"{figure_path}/f2_dispersion_vs_infectious.pdf")
 
@@ -470,8 +489,8 @@ def figure_2():
         coords=dict(latent=2, infectious=3),
         par="disp",
         which="data",
-        marker = "s",
-        s = ms_default *1.25,
+        marker="s",
+        s=ms_default * 1.25,
     )
     ax = plot_dispersion_cutplane(
         ax=ax,
@@ -480,10 +499,10 @@ def figure_2():
         which="data",
         # use hollow symbols for tlat = 6
         facecolor="white",
-        marker = "s",
-        s = ms_default *1.25,
+        marker="s",
+        s=ms_default * 1.25,
     )
-    bnb.plt.set_size(ax, w=0.4, h=0.8, l=0.6, b=0.6, t=0.2, r=0.1)
+    bnb.plt.set_size(ax, w=0.4*1.2, h=1.2, l=0.6, b=0.6, t=0.25, r=0.1)
     sns.despine(ax=ax, trim=False, offset=3)
     # ax.set_yticks([0.25, 0.5, 0.75], minor=True)
     # ax.yaxis.set_major_formatter(NullFormatter())
@@ -498,7 +517,7 @@ def figure_3():
 
     rand_kwargs = default_plot_kwargs("data_rand")
     rand_kwargs["marker"] = None
-    ax = plot_conditional_rate(
+    ax = plot_conditional_encounter_rate(
         which=["data_rand", "data"],
         shaded_regions=True,
         plot_kwargs={"data_rand": rand_kwargs},
@@ -524,13 +543,13 @@ def figure_3():
     save_ax(ax, f"{figure_path}/f3_2d.pdf")
 
     # hard coded file path, no `which` arg
-    ax = plot_case_numbers()
-    _set_size(ax, 3.3 * cm, 2.5 * cm)
+    ax = plot_case_numbers(which_latent=["latent_2.00", "latent_6.00"],)
+    _set_size(ax, 5.0 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f3_case_numbers.pdf")
 
     # hard coded file path, no `which` arg
     ax = plot_growth_rate()
-    _set_size(ax, 3.3 * cm, 2.5 * cm)
+    _set_size(ax, 4.72 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f3_growth_rate.pdf")
 
 
@@ -549,14 +568,14 @@ def figure_4(create_distirbution_insets=False):
 
             kwargs = default_plot_kwargs(process, for_errorbars=False)
             kwargs["lw"] = 0.5
-            ax = plot_conditional_rate(
+            ax = plot_conditional_encounter_rate(
                 which=["data", process], plot_kwargs={process: kwargs}
             )
-            _set_size(ax, 2.5 * cm, 1.8 * cm)
+            _set_size(ax, 2.3 * cm, 1.8 * cm)
             save_ax(ax, f"{figure_path}/f4_conditional_rate_{process}.pdf")
 
             ax = plot_etrain_rate(which=["data", process])
-            _set_size(ax, 2.8 * cm, 1.8 * cm)
+            _set_size(ax, 2.3 * cm, 1.8 * cm)
             save_ax(ax, f"{figure_path}/f4_etrain_rate_{process}.pdf")
 
             kwargs = default_plot_kwargs(process, for_errorbars=False)
@@ -580,7 +599,7 @@ def figure_4(create_distirbution_insets=False):
             ax = plot_disease_mean_number_of_infectious_encounter_2d(
                 which=process, relative_to=f"{process}_rand", control_plot=True
             )
-            _set_size(ax, 2.0 * cm, 2.0 * cm)
+            _set_size(ax, 1.6 * cm, 1.6 * cm)
             save_ax(ax, f"{figure_path}/f4_2d_{process}.pdf")
 
             # for distributions, show different latent periods
@@ -592,7 +611,7 @@ def figure_4(create_distirbution_insets=False):
                 )
                 ax.set_xlim(-5, 150)
                 ax.set_ylim(1e-4, 1e-1)
-                _set_size(ax, 2.5 * cm, 1 * cm)
+                _set_size(ax, 2.0 * cm, 1 * cm)
 
                 if create_distirbution_insets:
                     f = functools.partial(
@@ -668,210 +687,6 @@ def create_inset(
     return axins
 
 
-# figure 3 in v1
-def figure_sm_features_explained(h5f):
-    log.info("Figure feautres explained")
-    for which in [
-        "data",
-        "poisson_homogeneous",
-        "poisson_homogeneous_weighted_trains",
-        "poisson_inhomogeneous",
-        "poisson_inhomogeneous_weighted_trains",
-        "weibul_renewal_process",
-        "weibul_renewal_process_weighted_trains",
-    ]:
-        plot_disease_mean_number_of_infectious_encounter_2d(
-            h5f, which=which, how="relative", control_plot=True
-        )
-
-    which = ["data", "poisson_inhomogeneous", "poisson_inhomogeneous_weighted_trains"]
-    plot_conditional_rate(h5f, which=which, control_plot=True)
-
-    which = ["data", "weibul_renewal_process", "weibul_renewal_process_weighted_trains"]
-    plot_conditional_rate(h5f, which=which, control_plot=True)
-
-
-# figure 4 in v1
-def figure_sm_dispersion(h5f):
-    log.info("Figure dispersion")
-    plot_disease_viral_load_examples()
-    plot_gamma_distribution()
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
-    plot_dispersion_scan_k(h5f, periods="slow")
-
-
-def figure_sm_external(h5f):
-    log.info("Figure SM external")
-    plot_controls_distributions_infectious_encounters(
-        h5f, which="gamma_6_3", k_sel="k_10.0", inset=False
-    )
-    plot_controls_distributions_infectious_encounters(
-        h5f, which="gamma_2_3", k_sel="k_10.0", inset=False
-    )
-    plot_controls_means_infectious_encounters(
-        h5f, which_list=["gamma_6_3", "gamma_2_3"], k_sel="k_10.0"
-    )
-
-
-def figure_sm_overview(h5f):
-    log.info("Figure SM overview")
-    plot_etrain_rate(h5f)
-    plot_dist_inter_encounter_interval(h5f)
-    plot_disease_mean_number_of_infectious_encounter_2d(
-        h5f, which="data", how="relative", control_plot=False
-    )
-    plot_conditional_rate(h5f, which=["data"], control_plot=True)
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="fast")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="fast")
-    plot_dispersion_scan_k(h5f, periods="slow")
-    plot_dispersion_scan_k(h5f, periods="fast")
-
-
-def figure_sm_dispersion(h5f):
-    log.info("Figure SM dispersion")
-    plot_disease_dist_infectious_encounters(h5f, k="k_1.0", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_1.0", periods="fast")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="fast")
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="fast")
-    plot_dispersion_scan_k(h5f, periods="slow")
-    plot_dispersion_scan_k(h5f, periods="fast")
-
-
-def figure_sm_rssi_duration(how="absolute"):
-    """
-    Controls for different distance and contact duration
-    creates plots for 2d potentially inf. encounters and conditional encounter rate
-    using hardcoded paths
-    """
-
-    # define some helpers with defaul arguments
-    load = functools.partial(
-        bnb.hi5.recursive_load, dtype=bdict, keepdim=True, skip=["trains"]
-    )
-
-    plot_2d = functools.partial(
-        plot_disease_mean_number_of_infectious_encounter_2d,
-        which="data",
-        how=how,
-        control_plot=False,
-    )
-
-    h5ref = load(
-        file_path_shorthand("data"),
-    )
-
-    fig_kws = dict(dpi=300, transparent=True)
-
-    # Contact duration
-    fig, ax1d = plt.subplots(figsize=(8 * cm, 5 * cm))
-
-    kwargs = dict(label="15min (main)")
-    plot_conditional_rate(
-        h5ref, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5ref)
-    ax.set_title("15min (main)")
-    ax.get_figure().savefig(f"./figs/mins/2d_15min_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_min_sweep/results_Copenhagen_filtered_5min.h5")
-    kwargs = dict(label="5min", lw=0.5)
-    plot_conditional_rate(
-        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5f)
-    ax.set_title("5min")
-    ax.get_figure().savefig(f"./figs/mins/2d_5min_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_min_sweep/results_Copenhagen_filtered_10min.h5")
-    kwargs = dict(label="10min", lw=0.5)
-    plot_conditional_rate(
-        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5f)
-    ax.set_title("10min")
-    ax.get_figure().savefig(f"./figs/mins/2d_10min_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_min_sweep/results_Copenhagen_filtered_20min.h5")
-    kwargs = dict(label="20min", lw=0.5)
-    plot_conditional_rate(
-        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5f)
-    ax.set_title("20min")
-    ax.get_figure().savefig(f"./figs/mins/2d_20min_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_min_sweep/results_Copenhagen_filtered_30min.h5")
-    kwargs = dict(label="30min", lw=0.5)
-    plot_conditional_rate(
-        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5f)
-    ax.set_title("30min")
-    ax.get_figure().savefig(f"./figs/mins/2d_30min_{how}.pdf", **fig_kws)
-
-    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm)
-    fig.axes[0].set_ylim(0, 100)
-    fig.savefig(f"./figs/mins/cer.pdf", **fig_kws)
-
-    # RSSI conditional encounter rate
-    fig, ax = plt.subplots(figsize=(8 * cm, 5 * cm))
-
-    kwargs = dict(label="-80db (main)")
-    plot_conditional_rate(
-        h5ref, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-
-    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
-    kwargs = dict(label="-75db")
-    plot_conditional_rate(
-        h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-
-    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
-    kwargs = dict(label="-95db")
-    plot_conditional_rate(
-        h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-
-    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm)
-    fig.axes[0].set_ylim(0, 120)
-    fig.savefig(f"./figs/rssi/cer.pdf", **fig_kws)
-
-    # RSSI 2d plots
-    ax = plot_2d(h5ref)
-    ax.set_title("-80db (main)")
-    ax.get_figure().savefig(f"./figs/rssi/2d_80_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
-    ax = plot_2d(h5f)
-    ax.set_title("-75db")
-    ax.get_figure().savefig(f"./figs/rssi/2d_75_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
-    ax = plot_2d(h5f)
-    ax.set_title("-95db")
-    ax.get_figure().savefig(f"./figs/rssi/2d_95_{how}.pdf", **fig_kws)
-
-
-def figure_sm_rate_and_iei_complete(h5f):
-    """
-    plots for encounter rate and inter-encounter-intervals (fig 1, bottom)
-    showing sampled process along the data
-    """
-    ax = plot_etrain_rate(h5f, sm_generative_processes=True)
-    _set_size(ax, 5.0 * cm, 3.5 * cm)
-    ax.get_figure().savefig(f"./figs/sm_ecr.pdf", **fig_kws)
-
-    ax = plot_dist_inter_encounter_interval(h5f, sm_generative_processes=True)
-    _set_size(ax, 5.0 * cm, 3.5 * cm)
-    ax.get_figure().savefig(f"./figs/sm_iei.pdf", **fig_kws)
-
-
 # decorator for lower level plot functions to continue if subplot fails
 def warntry(func):
     def wrapper(*args, **kwargs):
@@ -930,7 +745,7 @@ def plot_etrain_rasters(h5f=None):
     return ax
 
 
-# Fig 1c
+# Fig 4
 @warntry
 def plot_etrain_rate(
     ax=None,
@@ -940,7 +755,7 @@ def plot_etrain_rate(
     if ax is None:
         with plt.rc_context(
             {
-                "xtick.labelsize": 6,
+                "xtick.labelsize": 5,
                 "ytick.labelsize": 6,
                 # labels are weekdays, need more space. and we place them on the minors
                 "xtick.minor.pad": 6,
@@ -1001,6 +816,8 @@ def plot_etrain_rate(
     ax.xaxis.set_minor_locator(MultipleLocator(0.5))
     # this is only true for copenhagen
     days = ["Su", "Mo", "Tu", "Wd", "Th", "Fr", "Sa"]
+    # days = ["", "Mo", "", "", "", "Fr", ""]
+    # days = ["Su", "M", "T", "Wd", "T", "F", "Sa"]
 
     try:
         # dirty workaround for invs15
@@ -1027,7 +844,7 @@ def plot_etrain_rate(
     return ax
 
 
-# Fig 1d, SM
+# Fig 4, SM
 @warntry
 def plot_dist_inter_encounter_interval(
     ax=None, which=["data"], log_or_lin="log", plot_kwargs=None
@@ -1134,7 +951,7 @@ def plot_dist_inter_encounter_interval(
     return ax
 
 
-# Fig 2b
+# Fig 1d
 @warntry
 def plot_dist_encounters_per_day(
     which=["data", "data_rand"], ax=None, plot_kwargs=None, show_fit=False
@@ -1226,15 +1043,16 @@ def plot_dist_encounters_per_day(
     ax.xaxis.set_minor_locator(MultipleLocator(5))
     ax.set_yscale("log")
     ax.set_ylim(1e-4, 1)
-    ax.set_xlim(-2, 54.5)
+    # ax.set_xlim(-2, 54.5)
+    ax.set_xlim(-2, 61)
 
     _fix_log_ticks(ax.yaxis, every=2, hide_label_condition=lambda idx: (idx) % 2 == 0)
     ax.xaxis.set_major_locator(MultipleLocator(20))
     fig.tight_layout()
     _set_size(ax, 6.3 * cm, 2.2 * cm)
 
-    # tiny = False
-    tiny = True
+    tiny = False
+    # tiny = True
     if tiny:
         for tick in ax.xaxis.get_major_ticks():
             tick.label.set_fontsize(6)
@@ -1245,7 +1063,7 @@ def plot_dist_encounters_per_day(
     return ax
 
 
-# Fig 2a
+# Fig 1c, Fig 4
 @warntry
 def plot_dist_encounters_per_train(
     ax=None, which=["data", "data_rand"], plot_kwargs=None, show_fit=False
@@ -1317,6 +1135,8 @@ def plot_dist_encounters_per_train(
     ax.xaxis.set_major_locator(MultipleLocator(200))
     ax.xaxis.set_minor_locator(MultipleLocator(50))
 
+    ax.set_xlim(-25, 700)
+
     if show_xlabel:
         ax.set_xlabel(r"Number of encounters (per train)")
     if show_ylabel:
@@ -1332,8 +1152,8 @@ def plot_dist_encounters_per_train(
     # _set_size(ax, 2.4 * cm, 1.4 * cm)
     _set_size(ax, 6.3 * cm, 2.2 * cm)
 
-    # tiny = False
-    tiny = True
+    tiny = False
+    # tiny = True
     if tiny:
         for tick in ax.xaxis.get_major_ticks():
             tick.label.set_fontsize(6)
@@ -1403,7 +1223,7 @@ def plot_etrain_raster_example(h5f, ax=None):
     return ax
 
 
-# Fig 2e
+# Fig 3a
 @warntry
 def plot_disease_mean_number_of_infectious_encounter_cutplane(
     ax=None,
@@ -1483,9 +1303,9 @@ def plot_disease_mean_number_of_infectious_encounter_cutplane(
     return ax
 
 
-# Fig 2d, Fig 3b, SM
+# Fig 3c, Fig 4, SM
 @warntry
-def plot_conditional_rate(
+def plot_conditional_encounter_rate(
     ax=None, which=["data"], shaded_regions=False, plot_kwargs=None
 ):
     """
@@ -1603,7 +1423,7 @@ def plot_conditional_rate(
     return ax
 
 
-# Fig 2f, Fig 3a, SM
+# Fig 3b, Fig 4, SM
 @warntry
 def plot_disease_mean_number_of_infectious_encounter_2d(
     ax=None, which="data", relative_to=None, control_plot=False
@@ -1686,6 +1506,7 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
         xticklabels=False,
         yticklabels=False,
         zorder=-5,
+        rasterized=True,
         **kwargs,
     )
 
@@ -1739,7 +1560,7 @@ def plot_disease_mean_number_of_infectious_encounter_2d(
     return ax
 
 
-# new Fig 2
+# Fig 2f
 def plot_extinction_probability(
     h5f=None, ax=None, apply_formatting=True, which="analytic"
 ):
@@ -2081,7 +1902,7 @@ def plot_disease_viral_load_examples():
     #         lab.set_visible(False)
     fig.tight_layout()
 
-
+# Fig 2b
 @warntry
 def plot_disease_dist_infectious_encounters(
     which=["data", "data_rand", "data_rand_all"],
@@ -2169,6 +1990,7 @@ def plot_disease_dist_infectious_encounters(
                 log.debug(f"p_full {p_full}")
 
                 ref = _ev(num_encounter, p_full)
+                log.debug(f"expectation value of num encounters: {ref}")
                 ax.axvline(
                     ref,
                     0,
@@ -2230,7 +2052,7 @@ def plot_disease_dist_infectious_encounters(
 
     return ax
 
-
+# Fig 2d
 @warntry
 def plot_disease_dist_secondary_infections(
     which=["data", "data_rand", "data_rand_all"],
@@ -2398,7 +2220,7 @@ def plot_disease_dist_secondary_infections(
     ax.xaxis.set_minor_locator(MultipleLocator(5))
     ax.yaxis.set_minor_locator(MultipleLocator(0.05))
     ax.yaxis.set_major_locator(MultipleLocator(0.2))
-    ax.xaxis.set_major_locator(MultipleLocator(20))
+    ax.xaxis.set_major_locator(MultipleLocator(10))
     sns.despine(ax=ax, trim=False, offset=3)
     # we probably want to compare with Lloyd Smith
 
@@ -2426,6 +2248,220 @@ def plot_disease_dist_secondary_infections(
     fig.tight_layout()
 
     return ax
+
+
+# ------------------------------------------------------------------------------ #
+# SM Functions, might need updating for new file convention
+# ------------------------------------------------------------------------------ #
+
+
+# figure 3 in v1
+def figure_sm_features_explained(h5f):
+    log.info("Figure feautres explained")
+    for which in [
+        "data",
+        "poisson_homogeneous",
+        "poisson_homogeneous_weighted_trains",
+        "poisson_inhomogeneous",
+        "poisson_inhomogeneous_weighted_trains",
+        "weibul_renewal_process",
+        "weibul_renewal_process_weighted_trains",
+    ]:
+        plot_disease_mean_number_of_infectious_encounter_2d(
+            h5f, which=which, how="relative", control_plot=True
+        )
+
+    which = ["data", "poisson_inhomogeneous", "poisson_inhomogeneous_weighted_trains"]
+    plot_conditional_encounter_rate(h5f, which=which, control_plot=True)
+
+    which = ["data", "weibul_renewal_process", "weibul_renewal_process_weighted_trains"]
+    plot_conditional_encounter_rate(h5f, which=which, control_plot=True)
+
+
+# figure 4 in v1
+def figure_sm_dispersion(h5f):
+    log.info("Figure dispersion")
+    plot_disease_viral_load_examples()
+    plot_gamma_distribution()
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
+    plot_dispersion_scan_k(h5f, periods="slow")
+
+
+def figure_sm_external(h5f):
+    log.info("Figure SM external")
+    plot_controls_distributions_infectious_encounters(
+        h5f, which="gamma_6_3", k_sel="k_10.0", inset=False
+    )
+    plot_controls_distributions_infectious_encounters(
+        h5f, which="gamma_2_3", k_sel="k_10.0", inset=False
+    )
+    plot_controls_means_infectious_encounters(
+        h5f, which_list=["gamma_6_3", "gamma_2_3"], k_sel="k_10.0"
+    )
+
+
+def figure_sm_overview(h5f):
+    log.info("Figure SM overview")
+    plot_etrain_rate(h5f)
+    plot_dist_inter_encounter_interval(h5f)
+    plot_disease_mean_number_of_infectious_encounter_2d(
+        h5f, which="data", how="relative", control_plot=False
+    )
+    plot_conditional_encounter_rate(h5f, which=["data"], control_plot=True)
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="fast")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="fast")
+    plot_dispersion_scan_k(h5f, periods="slow")
+    plot_dispersion_scan_k(h5f, periods="fast")
+
+
+def figure_sm_dispersion(h5f):
+    log.info("Figure SM dispersion")
+    plot_disease_dist_infectious_encounters(h5f, k="k_1.0", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_1.0", periods="fast")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="fast")
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="fast")
+    plot_dispersion_scan_k(h5f, periods="slow")
+    plot_dispersion_scan_k(h5f, periods="fast")
+
+
+def figure_sm_rssi_duration(how="absolute"):
+    """
+    Controls for different distance and contact duration
+    creates plots for 2d potentially inf. encounters and conditional encounter rate
+    using hardcoded paths
+    """
+
+    # define some helpers with defaul arguments
+    load = functools.partial(
+        bnb.hi5.recursive_load, dtype=bdict, keepdim=True, skip=["trains"]
+    )
+
+    plot_2d = functools.partial(
+        plot_disease_mean_number_of_infectious_encounter_2d,
+        which="data",
+        how=how,
+        control_plot=False,
+    )
+
+    h5ref = load(
+        file_path_shorthand("data"),
+    )
+
+    fig_kws = dict(dpi=300, transparent=True)
+
+    # Contact duration
+    fig, ax1d = plt.subplots(figsize=(8 * cm, 5 * cm))
+
+    kwargs = dict(label="15min (main)")
+    plot_conditional_encounter_rate(
+        h5ref, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5ref)
+    ax.set_title("15min (main)")
+    ax.get_figure().savefig(f"./figs/mins/2d_15min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_5min.h5")
+    kwargs = dict(label="5min", lw=0.5)
+    plot_conditional_encounter_rate(
+        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5f)
+    ax.set_title("5min")
+    ax.get_figure().savefig(f"./figs/mins/2d_5min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_10min.h5")
+    kwargs = dict(label="10min", lw=0.5)
+    plot_conditional_encounter_rate(
+        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5f)
+    ax.set_title("10min")
+    ax.get_figure().savefig(f"./figs/mins/2d_10min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_20min.h5")
+    kwargs = dict(label="20min", lw=0.5)
+    plot_conditional_encounter_rate(
+        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5f)
+    ax.set_title("20min")
+    ax.get_figure().savefig(f"./figs/mins/2d_20min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_30min.h5")
+    kwargs = dict(label="30min", lw=0.5)
+    plot_conditional_encounter_rate(
+        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5f)
+    ax.set_title("30min")
+    ax.get_figure().savefig(f"./figs/mins/2d_30min_{how}.pdf", **fig_kws)
+
+    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm)
+    fig.axes[0].set_ylim(0, 100)
+    fig.savefig(f"./figs/mins/cer.pdf", **fig_kws)
+
+    # RSSI conditional encounter rate
+    fig, ax = plt.subplots(figsize=(8 * cm, 5 * cm))
+
+    kwargs = dict(label="-80db (main)")
+    plot_conditional_encounter_rate(
+        h5ref, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+
+    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
+    kwargs = dict(label="-75db")
+    plot_conditional_encounter_rate(
+        h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+
+    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
+    kwargs = dict(label="-95db")
+    plot_conditional_encounter_rate(
+        h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+
+    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm)
+    fig.axes[0].set_ylim(0, 120)
+    fig.savefig(f"./figs/rssi/cer.pdf", **fig_kws)
+
+    # RSSI 2d plots
+    ax = plot_2d(h5ref)
+    ax.set_title("-80db (main)")
+    ax.get_figure().savefig(f"./figs/rssi/2d_80_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
+    ax = plot_2d(h5f)
+    ax.set_title("-75db")
+    ax.get_figure().savefig(f"./figs/rssi/2d_75_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
+    ax = plot_2d(h5f)
+    ax.set_title("-95db")
+    ax.get_figure().savefig(f"./figs/rssi/2d_95_{how}.pdf", **fig_kws)
+
+
+def figure_sm_rate_and_iei_complete(h5f):
+    """
+    plots for encounter rate and inter-encounter-intervals (fig 1, bottom)
+    showing sampled process along the data
+    """
+    ax = plot_etrain_rate(h5f, sm_generative_processes=True)
+    _set_size(ax, 5.0 * cm, 3.5 * cm)
+    ax.get_figure().savefig(f"./figs/sm_ecr.pdf", **fig_kws)
+
+    ax = plot_dist_inter_encounter_interval(h5f, sm_generative_processes=True)
+    _set_size(ax, 5.0 * cm, 3.5 * cm)
+    ax.get_figure().savefig(f"./figs/sm_iei.pdf", **fig_kws)
+
+# ------------------------------------------------------------------------------ #
+# helpers
+# ------------------------------------------------------------------------------ #
+
 
 
 def _offspring_dist(n_infs, p_n_infs, p, x_max=25):
@@ -2614,7 +2650,7 @@ def plot_offspring_moments(
 
     return ax
 
-
+# Fig 2e
 def plot_dispersion_cutplane(
     coords, x_dim=None, par="r", which="data", ax=None, **plot_kwargs
 ):
@@ -2700,16 +2736,13 @@ def plot_dispersion_cutplane(
         # thus, remove some points from dataset
         if x_dim == "infectious":
             this_ndim_data = this_ndim_data.where(
-                (this_ndim_data["infectious"] <= 7) &
-                (this_ndim_data["infectious"] >= 1)
-                , drop=True
+                (this_ndim_data["infectious"] <= 7) & (this_ndim_data["infectious"] >= 1),
+                drop=True,
             )
         elif x_dim == "latent":
             this_ndim_data = this_ndim_data.where(
                 (this_ndim_data["latent"] <= 7), drop=True
             )
-
-
 
         ax.scatter(
             this_ndim_data[x_dim],
@@ -2882,7 +2915,7 @@ def plot_dispersion_extinction_correlate_old(
 
     return ax
 
-
+# Fig 2f
 def plot_dispersion_extinction_correlate(
     coords, which="data", relative_to=None, ax=None, **plot_kwargs
 ):
@@ -2934,7 +2967,7 @@ def plot_dispersion_extinction_correlate(
     ax.yaxis.set_minor_locator(MultipleLocator(0.1))
     # ax.set_xticks([1, 3, 5])
     ax.xaxis.set_major_locator(MultipleLocator(1))
-    ax.xaxis.set_minor_locator(MultipleLocator(.5))
+    ax.xaxis.set_minor_locator(MultipleLocator(0.5))
 
     if show_xlabel:
         ax.set_xlabel("Dispersion $\alpha$")
@@ -3094,7 +3127,7 @@ def _dispersion_data_prep(coords, par, which):
 
     return ndim_data
 
-
+# Fig 4
 @warntry
 def compare_disease_dist_encounters_generative(
     ax=None,
@@ -3434,7 +3467,8 @@ def plot_controls_means_infectious_encounters(
 
 
 # Fig 5
-# needs different h5f, not part of main file yet. usually in 'out_mf'
+# needs different h5f, not part of main file yet:
+# sample_continuous_branching_Copenhagen_filtered_15min.h5
 @warntry
 def plot_case_numbers(
     h5f=None,
@@ -3473,7 +3507,7 @@ def plot_case_numbers(
     for wdx, w in enumerate(which_latent):
         log.info(w)
         real = h5f["measurements"]["cases"][w]
-        surr = h5f["measurements_randomized_per_train"]["cases"][w]
+        # surr = h5f["measurements_randomized_per_train"]["cases"][w]
         base_color = f"C{wdx}"
         if "1.00" in w:
             base_color = "#868686"
@@ -3481,18 +3515,19 @@ def plot_case_numbers(
             base_color = clrs["n_low"]
         elif "6.00" in w:
             base_color = clrs["n_high"]
-        plot_cases(surr, color=_alpha_to_solid_on_bg(base_color, 0.3), label=f"surr {w}")
+        # plot_cases(surr, color=_alpha_to_solid_on_bg(base_color, 0.3), label=f"surr {w}")
         plot_cases(real, color=base_color, label=f"real {w}")
 
     if apply_formatting:
         # ax.axhline(1e4, 0, 1, color="gray", ls="--")
-        # ax.set_ylim(1, 1.1e6)
-        # ax.set_xlim(0, 14.75)
+        ax.set_ylim(11, 1.5e6)
+        ax.set_xlim(0, 10.5)
         ax.xaxis.set_major_locator(MultipleLocator(4))
         ax.xaxis.set_minor_locator(MultipleLocator(1))
         # for label in ax.xaxis.get_ticklabels()[::2]:
         #     label.set_visible(False)
         ax.set_yscale("log")
+        sns.despine(ax=ax, right=True, top=True, trim=False, offset=3)
         _fix_log_ticks(ax.yaxis, hide_label_condition=lambda idx: idx % 2 == 1)
 
     if show_ylabel:
@@ -3512,13 +3547,17 @@ def plot_case_numbers(
 
 
 # essentially, this is a carbon copy of `plot_r4`
-def plot_growth_rate():
+def plot_growth_rate(
+        analytic_solution=False,
+        shaded_regions=True,
+):
     fig, ax = plt.subplots()
 
     rand = np.loadtxt(
         "./out/analysis_continuous_branching_measurements_randomized_per_train.dat",
         unpack=True,
     )
+    rand += 0.000001
     data = np.loadtxt(
         "./out/analysis_continuous_branching_measurements.dat",
         unpack=True,
@@ -3535,29 +3574,30 @@ def plot_growth_rate():
     # Analytic solution
     # Johannes derived a closed formula for R(lambda, t_lat) but its not
     # possible to solve for lambda(R, t_lat) so we do it numerically.
-    from scipy.optimize import minimize
+    if analytic_solution:
+        from scipy.optimize import minimize
 
-    t_ift = 3
+        t_ift = 3
 
-    def func(lam):
-        return lam * t_ift * np.exp(lam * t_lat) / (1.0 - np.exp(-lam * t_ift))
+        def func(lam):
+            return lam * t_ift * np.exp(lam * t_lat) / (1.0 - np.exp(-lam * t_ift))
 
-    def delta(lam, R):
-        yt = func(lam)
-        return (yt - R) ** 2
+        def delta(lam, R):
+            yt = func(lam)
+            return (yt - R) ** 2
 
-    # We have an estimate of R from our measured eift * pift: 25 * 0.12 ~= 3
-    # as we do in `plot_disease_mean_number_of_infectious_encounter_cutplane`
-    target_R = 2.9483780
-    first_guess = 0.5
-    lam_res = np.ones(len(time_x)) * np.nan
-    for idx, t_lat in enumerate(time_x):
-        res = minimize(
-            delta, first_guess, args=(target_R), method="Nelder-Mead", tol=1e-6
-        )
-        lam_res[idx] = res.x[0]
+        # We have an estimate of R from our measured eift * pift: 25 * 0.12 ~= 3
+        # as we do in `plot_disease_mean_number_of_infectious_encounter_cutplane`
+        target_R = 2.9483780
+        first_guess = 0.5
+        lam_res = np.ones(len(time_x)) * np.nan
+        for idx, t_lat in enumerate(time_x):
+            res = minimize(
+                delta, first_guess, args=(target_R), method="Nelder-Mead", tol=1e-6
+            )
+            lam_res[idx] = res.x[0]
 
-    ax.plot(time_x, lam_res, lw=1, label="_analytic_solution", color=clrs["data_rand"])
+        ax.plot(time_x, lam_res, lw=1, label="_analytic_solution", color=clrs["data_rand"])
 
     ax.errorbar(
         time_x[:],
@@ -3589,63 +3629,64 @@ def plot_growth_rate():
     # shaded regions
     # for the crossings of colors that do not fall on sampled data points, we interpolate
     # and manually ad the points
-    ins_x = 0.82
-    ins_y = 0.5124
-    idx = np.argwhere(time_x[:] > ins_x)[0][0]
-    time_x = np.insert(time_x, idx, ins_x)
-    data_y = np.insert(data_y, idx, ins_y)
-    rand_y = np.insert(rand_y, idx, ins_y)
+    if shaded_regions:
+        ins_x = 0.82
+        ins_y = 0.5124
+        idx = np.argwhere(time_x[:] > ins_x)[0][0]
+        time_x = np.insert(time_x, idx, ins_x)
+        data_y = np.insert(data_y, idx, ins_y)
+        rand_y = np.insert(rand_y, idx, ins_y)
 
-    idx = np.where((time_x[:] >= 0) & (time_x[:] <= ins_x))[0]
-    ax.fill_between(
-        time_x[idx],
-        y1=rand_y[idx],
-        y2=data_y[idx],
-        color="#faad7c",
-        alpha=0.4,
-        lw=0,
-        zorder=1,
-    )
-    idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 4))[0]
-    ax.fill_between(
-        time_x[idx],
-        y1=rand_y[idx],
-        y2=data_y[idx],
-        color="#49737a",
-        alpha=0.4,
-        lw=0,
-        zorder=1,
-    )
+        idx = np.where((time_x[:] >= 0) & (time_x[:] <= ins_x))[0]
+        ax.fill_between(
+            time_x[idx],
+            y1=rand_y[idx],
+            y2=data_y[idx],
+            color="#faad7c",
+            alpha=0.4,
+            lw=0,
+            zorder=1,
+        )
+        idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 4))[0]
+        ax.fill_between(
+            time_x[idx],
+            y1=rand_y[idx],
+            y2=data_y[idx],
+            color="#49737a",
+            alpha=0.4,
+            lw=0,
+            zorder=1,
+        )
 
-    # insert another point
-    ins_x = 7.32
-    ins_y = 0.123
-    idx = np.argwhere(time_x[:] > ins_x)[0][0]
-    time_x = np.insert(time_x, idx, ins_x)
-    data_y = np.insert(data_y, idx, ins_y)
-    rand_y = np.insert(rand_y, idx, ins_y)
+        # insert another point
+        ins_x = 7.32
+        ins_y = 0.123
+        idx = np.argwhere(time_x[:] > ins_x)[0][0]
+        time_x = np.insert(time_x, idx, ins_x)
+        data_y = np.insert(data_y, idx, ins_y)
+        rand_y = np.insert(rand_y, idx, ins_y)
 
-    idx = np.where((time_x[:] >= 4) & (time_x[:] <= ins_x))[0]
-    ax.fill_between(
-        time_x[idx],
-        y1=rand_y[idx],
-        y2=data_y[idx],
-        color="#faad7c",
-        alpha=0.4,
-        lw=0,
-        zorder=1,
-    )
+        idx = np.where((time_x[:] >= 4) & (time_x[:] <= ins_x))[0]
+        ax.fill_between(
+            time_x[idx],
+            y1=rand_y[idx],
+            y2=data_y[idx],
+            color="#faad7c",
+            alpha=0.4,
+            lw=0,
+            zorder=1,
+        )
 
-    idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 8))[0]
-    ax.fill_between(
-        time_x[idx],
-        y1=rand_y[idx],
-        y2=data_y[idx],
-        color="#49737a",
-        alpha=0.4,
-        lw=0,
-        zorder=1,
-    )
+        idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 8))[0]
+        ax.fill_between(
+            time_x[idx],
+            y1=rand_y[idx],
+            y2=data_y[idx],
+            color="#49737a",
+            alpha=0.4,
+            lw=0,
+            zorder=1,
+        )
 
     # ax.legend()
     ax.set_yscale("log")
@@ -3863,6 +3904,81 @@ def plot_r0(h5f):
     _set_size(ax, 3.0 * cm, 1.1 * cm)
 
     return ax
+
+
+def foo():
+
+    p_at_zero = []
+    alpha = np.linspace(0, 10, 100)
+    r0 = 3.0
+    for a in alpha:
+        r = 1 / a
+        p = r0 / (r0 + 1 / a)
+        p = 1 - p
+        p_at_zero.append(scipy.stats.nbinom.pmf(0, r, p))
+
+    log.info(alpha, p_at_zero)
+    fig, ax = plt.subplots()
+    ax.plot(alpha, p_at_zero)
+    ax.set_xlabel("dispersion alpha")
+    ax.set_ylabel("probability of zero encounters")
+
+    fig, ax = plt.subplots()
+    for a in [0 + 1e-10, 0.3, 0.76, 10]:
+        try:
+            r = 1 / a
+        except:
+            r = np.inf
+        p = r0 / (r0 + r)
+        p = 1 - p
+        x_vals = np.arange(0, 25)
+        y_vals = scipy.stats.nbinom.pmf(x_vals, r, p)
+
+        # mean = p * r / (1 - p)
+        # var = p * r / (1 - p) ** 2
+        # log.info(f"mean: {mean:.3f}, var: {var:.3f}, r: {r:.3f} p: {p:.3f}")
+        # log.info(x_vals[0:10])
+        # log.info(y_vals[0:10])
+
+        ax.plot(x_vals, y_vals, clip_on=False, label=f"alpha={a:.2f}")
+
+    ax.legend()
+    return ax
+
+
+def bar():
+    ax = None
+    log.setLevel("DEBUG")
+    ax = plot_disease_dist_infectious_encounters(
+        ax=ax,
+        k="k_inf",
+        periods="2_3",
+        which=["data_rand_all"],
+        plot_kwargs=dict(label="data random"),
+    )
+
+    lam = 14.96956887079051
+    # poisson distribution
+    x_vals = np.arange(0, 50)
+    y_vals = scipy.stats.poisson.pmf(x_vals, lam)
+    ax.plot(
+        x_vals,
+        y_vals,
+        zorder=-2,
+        clip_on=True,
+        lw=0.8,
+        alpha=0.8,
+        color="#EC972C",
+        label=f"poisson",
+    )
+    ax.get_figure().tight_layout()
+    ax.set_ylim(1e-6, 1.4e-1)
+    ax.set_xlim(-5, 45)
+    bnb.plt.set_size(ax, w=6.2, h=3.1, l=1.5, b=1.0, t=0.5, r=0.3)
+    ax.set_xlabel("number of infectious encounters")
+    ax.set_ylabel("probability")
+    ax.set_xticks([0, 20, 40,])
+    ax.legend()
 
 
 # ------------------------------------------------------------------------------ #
