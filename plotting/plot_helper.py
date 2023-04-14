@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2023-04-14 10:00:51
+# @Last Modified: 2023-04-14 10:01:41
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -2161,7 +2161,6 @@ def plot_growth_rate(
         "./out/analysis_continuous_branching_measurements_randomized_per_train.dat",
         unpack=True,
     )
-    rand += 0.000001
     data = np.loadtxt(
         "./out/analysis_continuous_branching_measurements.dat",
         unpack=True,
