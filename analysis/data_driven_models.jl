@@ -731,7 +731,7 @@ function analytic_survival_probability(;
     #                       offspring across individuals but not across time
     ets_rand = surrogate_randomize_per_train(ets_data, seed_rand);
     # NEW: also include assumption of uniform R_0 across individuals
-    ets_rand_all = surrogate_randomize_all(ets_data,seed_rand);
+    ets_rand_all = surrogate_randomize_all(ets_data, seed_rand);
 
     T_ift_list=[1,3]
     T_lat_list = [2,6]
@@ -753,6 +753,9 @@ function analytic_survival_probability(;
 
                 mean_number_contacts = expectation(edist)
                 ps = Rs ./ mean_number_contacts
+
+                # restrict probability to <= 1; else R is not well defined
+                ps = ps[ps.<=1]
 
                 # sample survival as a function of infection probability
                 p_sur = zeros(length(ps))
