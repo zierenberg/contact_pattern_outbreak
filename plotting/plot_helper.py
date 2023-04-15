@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2023-04-15 18:28:05
+# @Last Modified: 2023-04-15 19:55:22
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -42,6 +42,8 @@ show_legend_in_extra_panel = False
 use_compact_size = True  # this recreates the small panel size of the manuscript
 figures_only_to_disk = True
 debug = False  # set to True to stop when a plot fails (disables the @warntry decorator)
+figure_path = "./figs/njp"
+data_input_path = "./out"
 
 
 # fmt: off
@@ -115,7 +117,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-8s | %(name)-12s | %(message)s",
     datefmt="%y-%m-%d %H:%M",
 )
-log = logging.getLogger(__name__)
+log = logging.getLogger("cp_plot_helper")
 log.setLevel("INFO")
 
 import seaborn as sns
@@ -131,8 +133,6 @@ import bitsandbobs as bnb
 
 # enable code formatting with black
 # fmt: on
-
-figure_path = "./figs/v4"
 
 clrs = dict(
     n_high="#C31B2B",
@@ -175,7 +175,7 @@ def file_path_shorthand(which):
     - '_rand_all' for fully randomized across trains and individuals
 
     """
-    path = "./out/"
+    path = data_input_path + "/"
     # add all the base paths
     if which.startswith("data"):
         path += "data"
@@ -1723,7 +1723,7 @@ def plot_dispersion_extinction_correlate(
     ax.xaxis.set_minor_locator(MultipleLocator(0.5))
 
     if show_xlabel:
-        ax.set_xlabel("Dispersion $\alpha$")
+        ax.set_xlabel(r"Dispersion $\alpha$")
     if show_ylabel:
         ax.set_ylabel(f"Extinction probability")
 
@@ -3927,6 +3927,10 @@ def save_ax(ax, fname, ensure_dpi_hack=True):
         # this might happen if a panel plot did not succeed
         log.warning("no axis to save")
         return
+
+    # create folder
+    os.makedirs(os.path.dirname(fname), exist_ok=True)
+    log.info(f"saving {os.path.abspath(fname)}")
 
     if ensure_dpi_hack:
         # make sure the right dpi gets embedded so graphics programs will recognice it.

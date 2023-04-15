@@ -26,7 +26,6 @@ Create folders for output
 
 ```bash
 mkdir ./out/
-mkdir ./out_mf/
 ```
 
 
@@ -69,6 +68,7 @@ analyse_all(InVS15(), path_out = "./out/", level_of_details=3)
 # Plotting
 
 Plotting is implemented in python.
+It assumes that analysed files are placed in './out/'
 Install required packages, new conda enviornment recommended. Some smaller packages are only available via pip
 
 ```bash
@@ -86,42 +86,35 @@ Start an interactive python shell with our `plot_helper`
   ipython -i ./plotting/plot_helper.py
 ```
 
-We have some global settings that affect all panels. Beware, when setting `use_compact_size = True` this may clip axis labels and ticks. They are still part of the pdf, just not in the viewer.
+We have some global settings that affect all panels.
 
 ```python
-show_title = True
-show_xlabel = True
-show_ylabel = True
-show_legend = True
+# select things to draw for every panel
+show_title = False
+show_xlabel = False
+show_ylabel = False
+show_legend = False
 show_legend_in_extra_panel = False
-use_compact_size = False  # this recreates the small panel size of the manuscript
+use_compact_size = True  # this recreates the small panel size of the manuscript
+figures_only_to_disk = True
+debug = False  # set to True to stop when a plot fails
+figure_path = "./figs/njp"
+data_input_path = "./out"
 ```
 
-Load the main hdf5 file from the analysis. Then, figures can be created as shown below. They should open automatically, else try `plt.show()` to show them manually or `plt.ion()` to set matplotlib to interactive mode. We provide a helper to save all currently open figures into a folder.
+Note that, since we arranged panels in postprocessing we did not generate the labels and titles in matplotlib. Thus, there may be clipping of the automatically genereated axis labels and titles. They are still part of the pdf, just not in the viewer.
+
+Load the main hdf5 file from the analysis. Then, figures can be created as shown below. They should open automatically, else try `plt.show()` to show them manually or `plt.ion()` to set matplotlib to interactive mode.
+
 
 ```python
-h5f = h5.recursive_load("./out/results_Copenhagen_filtered_15min.h5", dtype=bdict, keepdim=True)
-
-figure_1(h5f)
-figure_2(h5f)
-figure_3(h5f)
-figure_4(h5f)
-figure_5(h5f)  # this guy needs the extra files in './out_mf/'
-
-save_all_figures("./figs/", fmt="pdf", dpi=300)
+main_manuscript()
+# or
+figure_1()
+figure_2()
+figure_3()
+figure_4()
 ```
 
-Supplementary Figures may need different files to be loaded. Load the `h5f` as needed.
-
-```python
-figure_sm_external(h5f)
-figure_sm_overview(h5f)
-figure_sm_dispersion(h5f)
-```
-
-When done, it is recommended to close the hdf5 files to release the file lock (by default we do not load the full content into ram, but keep files open).
-
-```python
-h5.close_hot()
-```
+To recreate SM figures see the `figure_sm_` functions in `/plotting/plot_helper.py`.
 
