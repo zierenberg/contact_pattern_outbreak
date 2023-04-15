@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2023-04-14 10:01:41
+# @Last Modified: 2023-04-15 18:28:05
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -2110,7 +2110,7 @@ def plot_case_numbers(
     for wdx, w in enumerate(which_latent):
         log.info(w)
         real = h5f["measurements"]["cases"][w]
-        # surr = h5f["measurements_randomized_per_train"]["cases"][w]
+        surr = h5f["measurements_randomized_per_train"]["cases"][w]
         base_color = f"C{wdx}"
         if "1.00" in w:
             base_color = "#868686"
@@ -2118,7 +2118,7 @@ def plot_case_numbers(
             base_color = clrs["n_low"]
         elif "6.00" in w:
             base_color = clrs["n_high"]
-        # plot_cases(surr, color=_alpha_to_solid_on_bg(base_color, 0.3), label=f"surr {w}")
+        plot_cases(surr, color=clrs["data_rand"], label=f"surr {w}")
         plot_cases(real, color=base_color, label=f"real {w}")
 
     if apply_formatting:
@@ -2297,6 +2297,7 @@ def plot_growth_rate(
     ax.set_yscale("log")
     ax.set_ylim(1e-1, 2.0e-0)
     _fix_log_ticks(ax.yaxis, every=1)
+    _pretty_log_ticks(ax.yaxis)
     ax.set_xlim(0, 8)
     ax.xaxis.set_major_locator(MultipleLocator(2))
     ax.xaxis.set_minor_locator(MultipleLocator(1))
@@ -4030,7 +4031,7 @@ def _pretty_log_ticks(ax_el, prec=2):
     """
     Example
     ```
-        ax.yaxis.set_major_formatter(ticker.FuncFormatter(_pretty_log_formatter()))
+        ax.yaxis.set_major_formatter(ticker.FuncFormatter(_pretty_log_ticks()))
     ```
 
     """
