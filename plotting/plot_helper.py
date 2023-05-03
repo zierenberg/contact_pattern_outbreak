@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2022-09-29 11:27:46
+# @Last Modified: 2023-04-15 19:55:22
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -10,33 +10,30 @@
 # # Example
 # ```
 #   cd resonance_contact_disease
-#   python -i ./plotting/plot_helper.py
+#   python
 # ```
 # ```python
+# import sys
+# sys.path.append("plotting")
+# import plot_helper as ph
+#
 # # adjust what to draw in every panel, these are global settings
-# show_title = True
-# show_xlabel = True
-# show_ylabel = True
-# show_legend = True
-# show_legend_in_extra_panel = False
-# use_compact_size = False  # this recreates the small panel size of the manuscript
+# ph.show_title = True
+# ph.show_xlabel = True
+# ph.show_ylabel = True
+# ph.show_legend = True
+# ph.show_legend_in_extra_panel = False
+# ph.use_compact_size = False  # this recreates the small panel size of the manuscript
 
-# # load the main file
-# h5f = bnb.hi5.recursive_load(
-#    file_path_shorthand("data"), dtype=bdict, keepdim=True
-# )
-
-# # create figures, and, at any point, save whatever is currently open.
-# figure_1(h5f)
-# figure_2(h5f)
-# figure_3(h5f)
-# figure_4(h5f)
-# figure_5(h5f)  # this guy needs the extra files in './out_mf/'
-# save_all_figures("./figs/", fmt="pdf", dpi=300)
+# # create figures
+# ph.figure_1()
+# ph.figure_2()
+# ph.figure_3()
+# ph.figure_4()
 # ```
 # ------------------------------------------------------------------------------ #
 
-# select things to draw for every panel for every panel
+# select things to draw for every panel
 show_title = False
 show_xlabel = False
 show_ylabel = False
@@ -44,7 +41,9 @@ show_legend = False
 show_legend_in_extra_panel = False
 use_compact_size = True  # this recreates the small panel size of the manuscript
 figures_only_to_disk = True
-debug = True
+debug = False  # set to True to stop when a plot fails (disables the @warntry decorator)
+figure_path = "./figs/njp"
+data_input_path = "./out"
 
 
 # fmt: off
@@ -118,7 +117,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-8s | %(name)-12s | %(message)s",
     datefmt="%y-%m-%d %H:%M",
 )
-log = logging.getLogger(__name__)
+log = logging.getLogger("cp_plot_helper")
 log.setLevel("INFO")
 
 import seaborn as sns
@@ -134,8 +133,6 @@ import bitsandbobs as bnb
 
 # enable code formatting with black
 # fmt: on
-
-figure_path = "./figs/v3"
 
 clrs = dict(
     n_high="#C31B2B",
@@ -162,7 +159,23 @@ clrs = dict(
 
 
 def file_path_shorthand(which):
-    path = "./out/"
+    """
+    Helper to access files conveniently.
+
+    which is a string that can be one of the following:
+    - 'data'
+    - 'psn'
+    - 'wbl'
+    - 'tlrd'
+    - 'wbl_unweighted'
+    - 'psn_unweighted'
+
+    and to get randomized controls add
+    - '_rand' for randomized but keeping encounters per train
+    - '_rand_all' for fully randomized across trains and individuals
+
+    """
+    path = data_input_path + "/"
     # add all the base paths
     if which.startswith("data"):
         path += "data"
@@ -263,8 +276,8 @@ def main_manuscript():
 def figure_1():
     log.info("Figure 1")
 
-    # ax = plot_etrain_rasters()
-    # save_ax(ax, f"{figure_path}/f1_trains.pdf")
+    ax = plot_etrain_rasters()
+    save_ax(ax, f"{figure_path}/f1_trains.pdf")
 
     kwargs = default_plot_kwargs("data_rand", for_errorbars=False)
     kwargs["zorder"] = 2
@@ -273,11 +286,14 @@ def figure_1():
     ax = plot_dist_encounters_per_train(
         which=["data", "data_rand"], plot_kwargs={"data_rand": kwargs}
     )
+
+    _set_size(ax, 4.0 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f1_dist_per_train.pdf")
 
     ax = plot_dist_encounters_per_day(
         which=["data", "data_rand"], plot_kwargs={"data_rand": kwargs}
     )
+    _set_size(ax, 4.0 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f1_dist_per_day.pdf")
 
 
@@ -337,7 +353,7 @@ def figure_2():
     ax = plot_disease_dist_secondary_infections(
         ax=ax, R=3.0, which=["data"], periods="2_3"
     )
-    bnb.plt.set_size(ax, w=2.1, h=1.6, l=1.0, b=0.6, t=0.2, r=0.1)
+    bnb.plt.set_size(ax, w=4.5, h=1.6, l=1.0, b=0.6, t=0.2, r=0.1)
     sns.despine(ax=ax, trim=False, offset=3)
     save_ax(ax, f"{figure_path}/f2_offspring_distribution.pdf")
 
@@ -411,7 +427,7 @@ def figure_2():
         par="disp",
         which="data",
     )
-    bnb.plt.set_size(ax, w=1.4, h=0.8, l=0.6, b=0.6, t=0.2, r=0.1)
+    bnb.plt.set_size(ax, w=1.4 * 1.2, h=1.2, l=0.6, b=0.6, t=0.25, r=0.1)
     sns.despine(ax=ax, trim=False, offset=3)
     save_ax(ax, f"{figure_path}/f2_dispersion_vs_latent.pdf")
 
@@ -434,8 +450,8 @@ def figure_2():
         coords=dict(latent=2, R0=3),
         par="disp",
         which="data",
-        marker = "s",
-        s = ms_default *1.25,
+        marker="s",
+        s=ms_default * 1.25,
     )
     ax = plot_dispersion_cutplane(
         ax=ax,
@@ -444,10 +460,10 @@ def figure_2():
         which="data",
         # use hollow symbols for tlat = 6
         facecolor="white",
-        marker = "s",
-        s = ms_default *1.25,
+        marker="s",
+        s=ms_default * 1.25,
     )
-    bnb.plt.set_size(ax, w=1.255, h=0.8, l=0.6, b=0.6, t=0.2, r=0.1)
+    bnb.plt.set_size(ax, w=1.255 * 1.2, h=1.2, l=0.6, b=0.6, t=0.25, r=0.1)
     sns.despine(ax=ax, trim=False, offset=3)
     save_ax(ax, f"{figure_path}/f2_dispersion_vs_infectious.pdf")
 
@@ -470,8 +486,8 @@ def figure_2():
         coords=dict(latent=2, infectious=3),
         par="disp",
         which="data",
-        marker = "s",
-        s = ms_default *1.25,
+        marker="s",
+        s=ms_default * 1.25,
     )
     ax = plot_dispersion_cutplane(
         ax=ax,
@@ -480,10 +496,10 @@ def figure_2():
         which="data",
         # use hollow symbols for tlat = 6
         facecolor="white",
-        marker = "s",
-        s = ms_default *1.25,
+        marker="s",
+        s=ms_default * 1.25,
     )
-    bnb.plt.set_size(ax, w=0.4, h=0.8, l=0.6, b=0.6, t=0.2, r=0.1)
+    bnb.plt.set_size(ax, w=0.4 * 1.2, h=1.2, l=0.6, b=0.6, t=0.25, r=0.1)
     sns.despine(ax=ax, trim=False, offset=3)
     # ax.set_yticks([0.25, 0.5, 0.75], minor=True)
     # ax.yaxis.set_major_formatter(NullFormatter())
@@ -498,7 +514,7 @@ def figure_3():
 
     rand_kwargs = default_plot_kwargs("data_rand")
     rand_kwargs["marker"] = None
-    ax = plot_conditional_rate(
+    ax = plot_conditional_encounter_rate(
         which=["data_rand", "data"],
         shaded_regions=True,
         plot_kwargs={"data_rand": rand_kwargs},
@@ -524,13 +540,15 @@ def figure_3():
     save_ax(ax, f"{figure_path}/f3_2d.pdf")
 
     # hard coded file path, no `which` arg
-    ax = plot_case_numbers()
-    _set_size(ax, 3.3 * cm, 2.5 * cm)
+    ax = plot_case_numbers(
+        which_latent=["latent_2.00", "latent_6.00"],
+    )
+    _set_size(ax, 5.0 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f3_case_numbers.pdf")
 
     # hard coded file path, no `which` arg
     ax = plot_growth_rate()
-    _set_size(ax, 3.3 * cm, 2.5 * cm)
+    _set_size(ax, 4.72 * cm, 2.5 * cm)
     save_ax(ax, f"{figure_path}/f3_growth_rate.pdf")
 
 
@@ -549,14 +567,14 @@ def figure_4(create_distirbution_insets=False):
 
             kwargs = default_plot_kwargs(process, for_errorbars=False)
             kwargs["lw"] = 0.5
-            ax = plot_conditional_rate(
+            ax = plot_conditional_encounter_rate(
                 which=["data", process], plot_kwargs={process: kwargs}
             )
-            _set_size(ax, 2.5 * cm, 1.8 * cm)
+            _set_size(ax, 2.3 * cm, 1.8 * cm)
             save_ax(ax, f"{figure_path}/f4_conditional_rate_{process}.pdf")
 
             ax = plot_etrain_rate(which=["data", process])
-            _set_size(ax, 2.8 * cm, 1.8 * cm)
+            _set_size(ax, 2.3 * cm, 1.8 * cm)
             save_ax(ax, f"{figure_path}/f4_etrain_rate_{process}.pdf")
 
             kwargs = default_plot_kwargs(process, for_errorbars=False)
@@ -580,7 +598,7 @@ def figure_4(create_distirbution_insets=False):
             ax = plot_disease_mean_number_of_infectious_encounter_2d(
                 which=process, relative_to=f"{process}_rand", control_plot=True
             )
-            _set_size(ax, 2.0 * cm, 2.0 * cm)
+            _set_size(ax, 1.6 * cm, 1.6 * cm)
             save_ax(ax, f"{figure_path}/f4_2d_{process}.pdf")
 
             # for distributions, show different latent periods
@@ -592,7 +610,7 @@ def figure_4(create_distirbution_insets=False):
                 )
                 ax.set_xlim(-5, 150)
                 ax.set_ylim(1e-4, 1e-1)
-                _set_size(ax, 2.5 * cm, 1 * cm)
+                _set_size(ax, 2.0 * cm, 1 * cm)
 
                 if create_distirbution_insets:
                     f = functools.partial(
@@ -668,210 +686,6 @@ def create_inset(
     return axins
 
 
-# figure 3 in v1
-def figure_sm_features_explained(h5f):
-    log.info("Figure feautres explained")
-    for which in [
-        "data",
-        "poisson_homogeneous",
-        "poisson_homogeneous_weighted_trains",
-        "poisson_inhomogeneous",
-        "poisson_inhomogeneous_weighted_trains",
-        "weibul_renewal_process",
-        "weibul_renewal_process_weighted_trains",
-    ]:
-        plot_disease_mean_number_of_infectious_encounter_2d(
-            h5f, which=which, how="relative", control_plot=True
-        )
-
-    which = ["data", "poisson_inhomogeneous", "poisson_inhomogeneous_weighted_trains"]
-    plot_conditional_rate(h5f, which=which, control_plot=True)
-
-    which = ["data", "weibul_renewal_process", "weibul_renewal_process_weighted_trains"]
-    plot_conditional_rate(h5f, which=which, control_plot=True)
-
-
-# figure 4 in v1
-def figure_sm_dispersion(h5f):
-    log.info("Figure dispersion")
-    plot_disease_viral_load_examples()
-    plot_gamma_distribution()
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
-    plot_dispersion_scan_k(h5f, periods="slow")
-
-
-def figure_sm_external(h5f):
-    log.info("Figure SM external")
-    plot_controls_distributions_infectious_encounters(
-        h5f, which="gamma_6_3", k_sel="k_10.0", inset=False
-    )
-    plot_controls_distributions_infectious_encounters(
-        h5f, which="gamma_2_3", k_sel="k_10.0", inset=False
-    )
-    plot_controls_means_infectious_encounters(
-        h5f, which_list=["gamma_6_3", "gamma_2_3"], k_sel="k_10.0"
-    )
-
-
-def figure_sm_overview(h5f):
-    log.info("Figure SM overview")
-    plot_etrain_rate(h5f)
-    plot_dist_inter_encounter_interval(h5f)
-    plot_disease_mean_number_of_infectious_encounter_2d(
-        h5f, which="data", how="relative", control_plot=False
-    )
-    plot_conditional_rate(h5f, which=["data"], control_plot=True)
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="fast")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="fast")
-    plot_dispersion_scan_k(h5f, periods="slow")
-    plot_dispersion_scan_k(h5f, periods="fast")
-
-
-def figure_sm_dispersion(h5f):
-    log.info("Figure SM dispersion")
-    plot_disease_dist_infectious_encounters(h5f, k="k_1.0", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
-    plot_disease_dist_infectious_encounters(h5f, k="k_1.0", periods="fast")
-    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="fast")
-    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="fast")
-    plot_dispersion_scan_k(h5f, periods="slow")
-    plot_dispersion_scan_k(h5f, periods="fast")
-
-
-def figure_sm_rssi_duration(how="absolute"):
-    """
-    Controls for different distance and contact duration
-    creates plots for 2d potentially inf. encounters and conditional encounter rate
-    using hardcoded paths
-    """
-
-    # define some helpers with defaul arguments
-    load = functools.partial(
-        bnb.hi5.recursive_load, dtype=bdict, keepdim=True, skip=["trains"]
-    )
-
-    plot_2d = functools.partial(
-        plot_disease_mean_number_of_infectious_encounter_2d,
-        which="data",
-        how=how,
-        control_plot=False,
-    )
-
-    h5ref = load(
-        file_path_shorthand("data"),
-    )
-
-    fig_kws = dict(dpi=300, transparent=True)
-
-    # Contact duration
-    fig, ax1d = plt.subplots(figsize=(8 * cm, 5 * cm))
-
-    kwargs = dict(label="15min (main)")
-    plot_conditional_rate(
-        h5ref, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5ref)
-    ax.set_title("15min (main)")
-    ax.get_figure().savefig(f"./figs/mins/2d_15min_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_min_sweep/results_Copenhagen_filtered_5min.h5")
-    kwargs = dict(label="5min", lw=0.5)
-    plot_conditional_rate(
-        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5f)
-    ax.set_title("5min")
-    ax.get_figure().savefig(f"./figs/mins/2d_5min_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_min_sweep/results_Copenhagen_filtered_10min.h5")
-    kwargs = dict(label="10min", lw=0.5)
-    plot_conditional_rate(
-        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5f)
-    ax.set_title("10min")
-    ax.get_figure().savefig(f"./figs/mins/2d_10min_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_min_sweep/results_Copenhagen_filtered_20min.h5")
-    kwargs = dict(label="20min", lw=0.5)
-    plot_conditional_rate(
-        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5f)
-    ax.set_title("20min")
-    ax.get_figure().savefig(f"./figs/mins/2d_20min_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_min_sweep/results_Copenhagen_filtered_30min.h5")
-    kwargs = dict(label="30min", lw=0.5)
-    plot_conditional_rate(
-        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-    ax = plot_2d(h5f)
-    ax.set_title("30min")
-    ax.get_figure().savefig(f"./figs/mins/2d_30min_{how}.pdf", **fig_kws)
-
-    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm)
-    fig.axes[0].set_ylim(0, 100)
-    fig.savefig(f"./figs/mins/cer.pdf", **fig_kws)
-
-    # RSSI conditional encounter rate
-    fig, ax = plt.subplots(figsize=(8 * cm, 5 * cm))
-
-    kwargs = dict(label="-80db (main)")
-    plot_conditional_rate(
-        h5ref, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-
-    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
-    kwargs = dict(label="-75db")
-    plot_conditional_rate(
-        h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-
-    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
-    kwargs = dict(label="-95db")
-    plot_conditional_rate(
-        h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
-    )
-
-    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm)
-    fig.axes[0].set_ylim(0, 120)
-    fig.savefig(f"./figs/rssi/cer.pdf", **fig_kws)
-
-    # RSSI 2d plots
-    ax = plot_2d(h5ref)
-    ax.set_title("-80db (main)")
-    ax.get_figure().savefig(f"./figs/rssi/2d_80_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
-    ax = plot_2d(h5f)
-    ax.set_title("-75db")
-    ax.get_figure().savefig(f"./figs/rssi/2d_75_{how}.pdf", **fig_kws)
-
-    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
-    ax = plot_2d(h5f)
-    ax.set_title("-95db")
-    ax.get_figure().savefig(f"./figs/rssi/2d_95_{how}.pdf", **fig_kws)
-
-
-def figure_sm_rate_and_iei_complete(h5f):
-    """
-    plots for encounter rate and inter-encounter-intervals (fig 1, bottom)
-    showing sampled process along the data
-    """
-    ax = plot_etrain_rate(h5f, sm_generative_processes=True)
-    _set_size(ax, 5.0 * cm, 3.5 * cm)
-    ax.get_figure().savefig(f"./figs/sm_ecr.pdf", **fig_kws)
-
-    ax = plot_dist_inter_encounter_interval(h5f, sm_generative_processes=True)
-    _set_size(ax, 5.0 * cm, 3.5 * cm)
-    ax.get_figure().savefig(f"./figs/sm_iei.pdf", **fig_kws)
-
-
 # decorator for lower level plot functions to continue if subplot fails
 def warntry(func):
     def wrapper(*args, **kwargs):
@@ -930,40 +744,37 @@ def plot_etrain_rasters(h5f=None):
     return ax
 
 
-# Fig 1c
+# Fig 1c, Fig 4
 @warntry
-def plot_etrain_rate(
-    ax=None,
-    which=["data"],
-    plot_kwargs=None,
+def plot_dist_encounters_per_train(
+    ax=None, which=["data", "data_rand"], plot_kwargs=None, show_fit=False
 ):
-    if ax is None:
-        with plt.rc_context(
-            {
-                "xtick.labelsize": 6,
-                "ytick.labelsize": 6,
-                # labels are weekdays, need more space. and we place them on the minors
-                "xtick.minor.pad": 6,
-            }
-        ):
-            fig, ax = plt.subplots(figsize=(6.5 * cm, 4.5 * cm))
 
+    if ax is None:
+        fig, ax = plt.subplots()
     else:
         fig = ax.get_figure()
-    ax.set_rasterization_zorder(0)
-
-    norm_rate = 1 / 60 / 60 / 24
 
     for wdx, w in enumerate(which):
+        log.info(f"distribution of encounter per train for {w}")
         file = file_path_shorthand(w)
-        dset = "rate"
+        dset = "distribution_total_number_encounter_linbin"
 
         data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
 
-        r_time = data[0, :] / 60 / 60 / 24
-        r_full = data[1, :] / norm_rate
-        r_jack = data[2, :] / norm_rate
-        r_errs = data[3, :] / norm_rate
+        # fit result, this is a number.
+        try:
+            exp_scale = bnb.hi5.load(
+                file, dset.replace("_linbin", "_fit_exp"), raise_ex=True, keepdim=False
+            )
+        except:
+            exp_scale = np.nan
+            log.debug(f"couldnt load fit result for {w}")
+
+        num_full = data[0, :]
+        p_full = data[1, :]
+        num_errs = data[4, :]
+        p_errs = data[5, :]
 
         try:
             kwargs = plot_kwargs[w].copy()
@@ -976,165 +787,65 @@ def plot_etrain_rate(
                 kwargs = default_plot_kwargs(w, for_errorbars=False)
 
         if w == "data":
-            ax.errorbar(x=r_time, y=r_full, yerr=r_errs, **kwargs)
-        else:
-            ax.plot(r_time, r_full, **kwargs)
-
-    ax.set_xlim(0, 7)
-    ax.set_ylim(0, None)
-    ax.yaxis.set_minor_locator(MultipleLocator(5))
-
-    if show_xlabel:
-        ax.set_xlabel(r"Time (days of the week)")
-    if show_ylabel:
-        ax.set_ylabel(r"Rate (encounters per day)")
-    if show_title:
-        ax.set_title(r"Encounter rate (1 / day)", loc="left", fontsize=8)
-    if show_legend:
-        ax.legend()
-    if show_legend_in_extra_panel:
-        _legend_into_new_axes(ax)
-
-    # weekdays on x axis
-    ax.xaxis.set_major_locator(MultipleLocator(1))
-    ax.xaxis.set_major_formatter(matplotlib.ticker.NullFormatter())
-    ax.xaxis.set_minor_locator(MultipleLocator(0.5))
-    # this is only true for copenhagen
-    days = ["Su", "Mo", "Tu", "Wd", "Th", "Fr", "Sa"]
-
-    try:
-        # dirty workaround for invs15
-        if "InVS15" in h5f["h5/filename"]:
-            days = ["Mo", "Tu", "Wd", "Th", "Fr", "Sa", "Su"]
-    except:
-        pass
-
-    def tick(x, pos):
-        if x % 1 == 0.5 and x < 7:
-            return days[int(x)]
-        else:
-            return ""
-
-    ax.xaxis.set_minor_formatter(matplotlib.ticker.FuncFormatter(tick))
-    ax.tick_params(which="minor", axis="x", length=0)
-
-    ax.margins(x=0, y=0.0)
-    # ax.legend()
-
-    # fig.tight_layout()
-    _set_size(ax, 3.1 * cm, 2.0 * cm)
-
-    return ax
-
-
-# Fig 1d, SM
-@warntry
-def plot_dist_inter_encounter_interval(
-    ax=None, which=["data"], log_or_lin="log", plot_kwargs=None
-):
-    with plt.rc_context({"xtick.labelsize": 6, "ytick.labelsize": 6}):
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(6.5 * cm, 4.5 * cm))
-        else:
-            fig = ax.get_figure()
-        ax.set_rasterization_zorder(0)
-
-    # data is in seconds
-    iei_norm = 1 / 60 / 60 / 24
-
-    assert log_or_lin in ["log", "lin"]
-
-    for wdx, w in enumerate(which):
-        file = file_path_shorthand(w)
-        dset = "distribution_inter_encounter_intervals"
-
-        if log_or_lin == "log":
-            dset += "_logbin"
-
-        dat = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)[:]
-
-        iei = dat[0, :] * iei_norm
-        prob = dat[1, :]
-        jack_iei = dat[2, :] * iei_norm
-        jack_prob = dat[3, :]
-        errs_iei = dat[4, :] * iei_norm
-        errs_prob = dat[5, :]
-
-        # ------------------------------------------------------------------------------ #
-        # plot
-        # ------------------------------------------------------------------------------ #
-
-        try:
-            kwargs = plot_kwargs[w].copy()
-        except:
-            # no customizations set, use the defaults
-            if w == "data":
-                # data gets plotted as errorbars
-                kwargs = default_plot_kwargs(w, for_errorbars=True)
-            else:
-                kwargs = default_plot_kwargs(w, for_errorbars=False)
-
-        # for data, we have error bars in x and y
-        if w == "data":
-            e_step = 1
             ax.errorbar(
-                x=iei[::e_step],
-                y=prob[::e_step],
-                xerr=errs_iei[::e_step],
-                yerr=errs_prob[::e_step],
+                x=num_full,
+                y=p_full,
+                xerr=num_errs,
+                yerr=p_errs,
                 **kwargs,
             )
-
         else:
-            ax.plot(iei, prob, **kwargs)
+            ax.plot(num_full, p_full, **kwargs)
 
-    # annotations
-    ls_kwargs = dict(
-        linestyle=(0, (0.01, 2)),
-        dash_capstyle="round",
-        color="#BFBFBF",
-        lw=0.8,
-        zorder=-1,
-    )
-    ax.axvline(1 / 24 / 60 * 5, 0, 1, **ls_kwargs)  # 5 min
-    ax.axvline(1 / 24, 0, 1, **ls_kwargs)  # hour
-    ax.axvline(1, 0, 1, **ls_kwargs)  # day
-    ax.axvline(7, 0, 1, **ls_kwargs)  # week
+        try:
+            if show_fit is True or show_fit[w] is True:
+                num_c_max = np.nanmax(num_full) * 1.1
+                # styling of fits is somewhat limited, but the kwargs
+                # for errorbars are not really that useful.
+                ax.plot(
+                    np.arange(num_c_max),
+                    scipy.stats.expon.pdf(np.arange(num_c_max), loc=0, scale=exp_scale),
+                    color=_alpha_to_solid_on_bg(kwargs["color"], 0.5),
+                    label=kwargs["label"] + f" fit",
+                )
+        except:
+            pass
 
-    ax.set_xscale("log")
     ax.set_yscale("log")
+    ax.set_ylim(1e-4, 1.1e-2)
+    ax.xaxis.set_major_locator(MultipleLocator(200))
+    ax.xaxis.set_minor_locator(MultipleLocator(50))
+
+    ax.set_xlim(-25, 700)
 
     if show_xlabel:
-        ax.set_xlabel(r"Inter-encounter inverval (days)")
+        ax.set_xlabel(r"Number of encounters (per train)")
     if show_ylabel:
-        ax.set_ylabel(r"Probability density P(iei)")
+        ax.set_ylabel(r"Distribution")
     if show_title:
-        ax.set_title("Distribution of iei", fontsize=8)
+        ax.set_title(r"Encounters per Train", fontsize=8)
     if show_legend:
         ax.legend()
     if show_legend_in_extra_panel:
         _legend_into_new_axes(ax)
 
-    ax.set_ylim(1e-11, 1e-3)
-
-    _pretty_log_ticks(ax.xaxis, prec=2)
-
-    # show less ticks in main manuscript
-    _fix_log_ticks(
-        ax.yaxis, every=2, hide_label_condition=lambda idx: not (idx + 2) % 4 == 3
-    )
-    _fix_log_ticks(
-        ax.xaxis, every=1, hide_label_condition=lambda idx: not (idx + 2) % 1 == 0
-    )
-
     fig.tight_layout()
+    # _set_size(ax, 2.4 * cm, 1.4 * cm)
+    _set_size(ax, 6.3 * cm, 2.2 * cm)
 
-    # _set_size(ax, 2.5 * cm, 2.0 * cm)
-    _set_size(ax, 3.1 * cm, 2.0 * cm)
+    tiny = False
+    # tiny = True
+    if tiny:
+        for tick in ax.xaxis.get_major_ticks():
+            tick.label.set_fontsize(6)
+        for tick in ax.yaxis.get_major_ticks():
+            tick.label.set_fontsize(6)
+        _set_size(ax, 2.6 * cm, 1.7 * cm)
+
     return ax
 
 
-# Fig 2b
+# Fig 1d
 @warntry
 def plot_dist_encounters_per_day(
     which=["data", "data_rand"], ax=None, plot_kwargs=None, show_fit=False
@@ -1226,114 +937,16 @@ def plot_dist_encounters_per_day(
     ax.xaxis.set_minor_locator(MultipleLocator(5))
     ax.set_yscale("log")
     ax.set_ylim(1e-4, 1)
-    ax.set_xlim(-2, 54.5)
+    # ax.set_xlim(-2, 54.5)
+    ax.set_xlim(-2, 61)
 
     _fix_log_ticks(ax.yaxis, every=2, hide_label_condition=lambda idx: (idx) % 2 == 0)
     ax.xaxis.set_major_locator(MultipleLocator(20))
     fig.tight_layout()
     _set_size(ax, 6.3 * cm, 2.2 * cm)
 
-    # tiny = False
-    tiny = True
-    if tiny:
-        for tick in ax.xaxis.get_major_ticks():
-            tick.label.set_fontsize(6)
-        for tick in ax.yaxis.get_major_ticks():
-            tick.label.set_fontsize(6)
-        _set_size(ax, 2.6 * cm, 1.7 * cm)
-
-    return ax
-
-
-# Fig 2a
-@warntry
-def plot_dist_encounters_per_train(
-    ax=None, which=["data", "data_rand"], plot_kwargs=None, show_fit=False
-):
-
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-
-    for wdx, w in enumerate(which):
-        log.info(f"distribution of encounter per train for {w}")
-        file = file_path_shorthand(w)
-        dset = "distribution_total_number_encounter_linbin"
-
-        data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
-
-        # fit result, this is a number.
-        try:
-            exp_scale = bnb.hi5.load(
-                file, dset.replace("_linbin", "_fit_exp"), raise_ex=True, keepdim=False
-            )
-        except:
-            exp_scale = np.nan
-            log.debug(f"couldnt load fit result for {w}")
-
-        num_full = data[0, :]
-        p_full = data[1, :]
-        num_errs = data[4, :]
-        p_errs = data[5, :]
-
-        try:
-            kwargs = plot_kwargs[w].copy()
-        except:
-            # no customizations set, use the defaults
-            if w == "data":
-                # data gets plotted as errorbars
-                kwargs = default_plot_kwargs(w, for_errorbars=True)
-            else:
-                kwargs = default_plot_kwargs(w, for_errorbars=False)
-
-        if w == "data":
-            ax.errorbar(
-                x=num_full,
-                y=p_full,
-                xerr=num_errs,
-                yerr=p_errs,
-                **kwargs,
-            )
-        else:
-            ax.plot(num_full, p_full, **kwargs)
-
-        try:
-            if show_fit is True or show_fit[w] is True:
-                num_c_max = np.nanmax(num_full) * 1.1
-                # styling of fits is somewhat limited, but the kwargs
-                # for errorbars are not really that useful.
-                ax.plot(
-                    np.arange(num_c_max),
-                    scipy.stats.expon.pdf(np.arange(num_c_max), loc=0, scale=exp_scale),
-                    color=_alpha_to_solid_on_bg(kwargs["color"], 0.5),
-                    label=kwargs["label"] + f" fit",
-                )
-        except:
-            pass
-
-    ax.set_yscale("log")
-    ax.set_ylim(1e-4, 1.1e-2)
-    ax.xaxis.set_major_locator(MultipleLocator(200))
-    ax.xaxis.set_minor_locator(MultipleLocator(50))
-
-    if show_xlabel:
-        ax.set_xlabel(r"Number of encounters (per train)")
-    if show_ylabel:
-        ax.set_ylabel(r"Distribution")
-    if show_title:
-        ax.set_title(r"Encounters per Train", fontsize=8)
-    if show_legend:
-        ax.legend()
-    if show_legend_in_extra_panel:
-        _legend_into_new_axes(ax)
-
-    fig.tight_layout()
-    # _set_size(ax, 2.4 * cm, 1.4 * cm)
-    _set_size(ax, 6.3 * cm, 2.2 * cm)
-
-    # tiny = False
-    tiny = True
+    tiny = False
+    # tiny = True
     if tiny:
         for tick in ax.xaxis.get_major_ticks():
             tick.label.set_fontsize(6)
@@ -1403,685 +1016,7 @@ def plot_etrain_raster_example(h5f, ax=None):
     return ax
 
 
-# Fig 2e
-@warntry
-def plot_disease_mean_number_of_infectious_encounter_cutplane(
-    ax=None,
-    which=["data"],
-    relative_to=None,
-    plot_kwargs=None,
-    t_inf=3,
-):
-    """
-    # Parameters
-    how : str, "relative" or "absolute"
-    t_inf : for which infectious period [in days] to draw the cutplane
-    """
-
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(6 * cm, 2.5 * cm))
-    else:
-        fig = ax.get_figure()
-
-    # load the data, but we need some extra details so load the recursrive,
-    # and filter later
-    dset = "disease/delta/scan_mean_number_infectious_encounter"
-
-    def get_2d(w, dset):
-        file = file_path_shorthand(w)
-        h5f = bnb.hi5.recursive_load(
-            file,
-            dtype=bdict,
-            keepdim=True,
-            skip=["trains"],
-        )
-        h5f = h5f[dset]
-
-        data_2d = h5f["mean"][:]
-        range_inf = h5f["range_infectious"][:]
-        range_lat = h5f["range_latent"][:]
-
-        return data_2d, range_inf, range_lat
-
-    for wdx, w in enumerate(which):
-
-        data_2d, range_inf, range_lat = get_2d(w, dset)
-
-        if relative_to is not None:
-            norm_2d, norm_range_inf, norm_range_lat = get_2d(relative_to, dset)
-            assert np.all(range_lat == norm_range_lat)
-            assert np.all(range_inf == norm_range_inf)
-            data_2d /= norm_2d
-            data_2d *= 100  # in percent
-
-        rdx = np.where(range_inf == t_inf)[0][0]
-        data_1d = data_2d[rdx, :]
-
-        try:
-            kwargs = plot_kwargs[w].copy()
-        except:
-            kwargs = default_plot_kwargs(w)
-
-        ax.plot(range_lat, data_1d, **kwargs)
-
-    ax.spines["top"].set_visible(True)
-    ax.spines["right"].set_visible(True)
-    ax.margins(x=0, y=0)
-    if relative_to is None:
-        ax.xaxis.set_minor_locator(MultipleLocator(1))
-        ax.yaxis.set_minor_locator(MultipleLocator(1))
-        ax.set_ylim(22, 30)
-
-    if show_xlabel:
-        ax.set_xlabel("Latent period (days)")
-    if show_ylabel:
-        how = "absolute" if relative_to is None else "relative"
-        ax.set_ylabel(f"Encounters ({how})")
-
-    fig.tight_layout()
-
-    return ax
-
-
-# Fig 2d, Fig 3b, SM
-@warntry
-def plot_conditional_rate(
-    ax=None, which=["data"], shaded_regions=False, plot_kwargs=None
-):
-    """
-    plot the conditional encounter rate from data or as obtained for generative processes
-
-    # Parameters
-    which : list of str
-        e.g. `["data", "poisson_inhomogeneous", "poisson_inhomogeneous_weighted_trains"]`
-        or `["data", "weibul_renewal_process", "weibul_renewal_process_weighted_trains"]`
-    shaded_regions: bool,
-        settings this to `True` disables the shaded area highlighting the areas of 3days infectioustness after tlat=2 and tlat=4, and sets different xlabels
-    plot_kwargs: dict of dicts
-        keys matching the strings in `which`
-        passed to the plotting functions
-
-    """
-
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-    ax.set_rasterization_zorder(0)
-
-    if not isinstance(which, list):
-        which = list(which)
-
-    norm_rate = 1 / 60 / 60 / 24
-    e_step = 25
-
-    for wdx, w in enumerate(which):
-        log.info(f"conditional encounter rate for {w}")
-        file = file_path_shorthand(w)
-        dset = "conditional_encounter_rate"
-
-        log.info(file)
-
-        try:
-            data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
-        except:
-            # w might be a loaded array
-            data = np.copy(w)
-            w = f"custom {wdx}"
-
-        r_time = data[0, :] * norm_rate
-        r_full = data[1, :] / norm_rate
-        try:
-            r_errs = data[1, :] / norm_rate
-        except:
-            pass
-
-        try:
-            kwargs = plot_kwargs[w].copy()
-        except:
-            # no customizations set, use the defaults
-            kwargs = default_plot_kwargs(w)
-
-        ax.plot(r_time, r_full, **kwargs)
-
-        if w == "data" and shaded_regions:
-            # shaded regions for examples: 2,3 and 6,3
-            idx = np.where((r_time > 6) & (r_time < 9))
-            ax.fill_between(
-                r_time[idx],
-                y1=np.zeros(len(idx)),
-                y2=r_full[idx],
-                color="#faad7c",
-                alpha=0.4,
-                lw=0,
-                zorder=-3,
-            )
-
-            idx = np.where((r_time > 2) & (r_time < 5))
-            ax.fill_between(
-                r_time[idx],
-                y1=np.zeros(len(idx)),
-                y2=r_full[idx],
-                color="#49737a",
-                alpha=0.3,
-                lw=0,
-                zorder=-3,
-            )
-
-    ax.set_xlim(-0.5, 10.5)
-    ax.set_ylim(0, 60)
-
-    if shaded_regions:
-        # in the first figure, where we show regions,
-        # we want a bigger panel with more detailed ticks
-        ax.xaxis.set_major_locator(MultipleLocator(1))
-        ax.xaxis.set_minor_locator(MultipleLocator(0.5))
-        for label in ax.xaxis.get_ticklabels()[::2]:
-            label.set_visible(False)
-        ax.set_xlim(0.0, 10.49)
-    else:
-        ax.xaxis.set_major_locator(MultipleLocator(2))
-        ax.xaxis.set_minor_locator(MultipleLocator(1))
-        ax.yaxis.set_minor_locator(MultipleLocator(10))
-
-    ax.margins(x=0, y=0)
-
-    if show_xlabel:
-        ax.set_xlabel(r"Time (days)")
-    if show_ylabel:
-        ax.set_ylabel(r"Rate (1/day)")
-    if show_title:
-        ax.set_title(r"Conditional encounter rate", fontsize=8)
-    if show_legend:
-        ax.legend()
-    if show_legend_in_extra_panel:
-        _legend_into_new_axes(ax)
-
-    fig.tight_layout()
-    _set_size(ax, 3.0 * cm, 1.8 * cm)
-
-    return ax
-
-
-# Fig 2f, Fig 3a, SM
-@warntry
-def plot_disease_mean_number_of_infectious_encounter_2d(
-    ax=None, which="data", relative_to=None, control_plot=False
-):
-    """
-    # Parameters
-    which : str, "data" or samples from h5f["sample/"], e.g. "poisson_inhomogeneous"
-    how : str, "relative" or "absolute"
-    control_plot : bool, set to `True` for use in Fig. 4 for slightly different styling
-    """
-
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-    ax.set_rasterization_zorder(0)
-
-    dset = "disease/delta/scan_mean_number_infectious_encounter"
-
-    def get_2d(w, dset):
-        file = file_path_shorthand(w)
-        h5f = bnb.hi5.recursive_load(
-            file,
-            dtype=bdict,
-            keepdim=True,
-            skip=["trains"],
-        )
-        h5f = h5f[dset]
-
-        data_2d = h5f["mean"][:]
-        range_inf = h5f["range_infectious"][:]
-        range_lat = h5f["range_latent"][:]
-
-        return data_2d, range_inf, range_lat
-
-    data_2d, range_inf, range_lat = get_2d(which, dset)
-
-    # maybe we normalize
-    if relative_to is not None:
-        norm_2d, norm_range_inf, norm_range_lat = get_2d(relative_to, dset)
-        assert np.all(range_lat == norm_range_lat)
-        assert np.all(range_inf == norm_range_inf)
-        data_2d /= norm_2d
-        data_2d *= 100  # in percent
-
-    # customize style
-    # custom color maps
-    palette = [
-        (0, "#C31B2B"),
-        (0.25, "#ffad7e"),
-        (0.5, "#E7E7B6"),
-        (0.85, "#195571"),
-        (1, "#011A39"),
-    ]
-    cmap = LinearSegmentedColormap.from_list("custom_cmap", palette, N=512)
-
-    if relative_to is None:
-        kwargs = dict(
-            vmin=0,
-            vmax=None,
-            cmap=cmap.reversed(),
-        )
-
-    else:
-        kwargs = dict(
-            vmin=50,
-            vmax=150,
-            center=100,
-            cmap=cmap.reversed(),
-        )
-
-    if control_plot:
-        kwargs["cbar"] = False
-
-    # draw!
-    sns.heatmap(
-        data_2d,
-        ax=ax,
-        square=True,
-        xticklabels=False,
-        yticklabels=False,
-        zorder=-5,
-        **kwargs,
-    )
-
-    xticklabels = []
-    xticks = []
-    for idx, x in enumerate(range_lat):
-        if x.is_integer() and x > 0 and x < 8:
-            xticks.append(idx)
-            if control_plot and x % 2 != 1:
-                xticklabels.append("")
-            else:
-                xticklabels.append(str(int(x)))
-
-    yticklabels = []
-    yticks = []
-    for idy, y in enumerate(range_inf):
-        if y.is_integer() and y > 0 and y < 8:
-            yticks.append(idy)
-            if control_plot and y % 2 != 1:
-                yticklabels.append("")
-            else:
-                yticklabels.append(str(int(y)))
-
-    # ax.set_xlabel("Latent period (days)")
-    # ax.set_ylabel("Infectious period (days)")
-    # ax.set_title(which)
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels)
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(yticklabels)
-    ax.invert_yaxis()
-
-    if not control_plot:
-        if show_xlabel:
-            ax.set_xlabel(r"Latent period (days)")
-        if show_ylabel:
-            ax.set_ylabel(r"Infectious period (days)")
-
-    if show_title:
-        ax.set_title(f"{which}", fontsize=8)
-
-    fig.tight_layout()
-
-    if control_plot:
-        ax.tick_params(
-            axis="both",
-            which="major",
-            length=1.5,
-        )
-
-    return ax
-
-
-# new Fig 2
-def plot_extinction_probability(
-    h5f=None, ax=None, apply_formatting=True, which="analytic"
-):
-    """
-    needs a different h5f than most plot functions:
-    the branchin process one, by default `branching_process_Copenhagen_filtered_15min`
-    """
-
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-
-    # TODO make consistent
-    if h5f is None and (which == "analytic"):
-        h5f = bnb.hi5.recursive_load(
-            "./out/analytic_survival_Copenhagen_filtered_15min.h5",
-            dtype=bdict,
-            keepdim=True,
-        )
-    elif h5f is None and which == "branching_process":
-        h5f = bnb.hi5.recursive_load(
-            "./out/branching_process_Copenhagen_filtered_15min.h5",
-            dtype=bdict,
-            keepdim=True,
-        )
-
-    if which == "analytic":
-        data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p"
-        data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p"
-        rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p"
-        rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p"
-        rand_all_2 = "rand_all/infectious_3.00_latent_2.00/survival_probability_p"
-        rand_all_6 = "rand_all/infectious_3.00_latent_6.00/survival_probability_p"
-    elif which == "branching_process":
-        data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
-        data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
-        rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
-        rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
-        rand_all_2 = None
-        rand_all_6 = None
-
-    # for path in [data_2, data_6, rand_2, rand_6, rand_all_2, rand_all_6]:
-    for path in [
-        rand_all_2,
-        rand_2,
-        data_6,
-        data_2,
-    ]:
-
-        plot_kwargs = dict()
-        # customize plot style depending on data to plot
-        if path is None:
-            # not all defined for branching process
-            continue
-        if path[0:8] == "rand_all":
-            # randomized across trains and individuals
-            plot_kwargs = dict(linestyle=(0, (2.0, 2.0)), dash_capstyle="round")
-            color = clrs["data_rand_all"]
-            label = "randomized all"
-            if "_2" not in path:
-                color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
-        elif path[0:4] == "rand":
-            # randomized by train
-            color = clrs["n_psn"]
-            label = "randomized"
-            if "_2" not in path:
-                color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
-
-        elif "latent_2.0" in path:
-            color = clrs["n_low"]
-            label = "data"
-        elif "latent_6.0" in path:
-            color = clrs["n_high"]
-            label = "data"
-        lat = re.search("latent_(\d+)", path, re.IGNORECASE).group(1)
-        label += f" Tlat={lat}"
-
-        data = h5f[path]
-        x_prob = data[0, :]
-        x_repr = data[1, :]
-        y_surv = data[2, :]
-
-        # we load survivial probability but decided to plot extinction probability
-        y_ext = 1 - y_surv
-
-        # limit xrange here, so we can keep clip_on=False
-        idx = np.where((x_repr > 0.7) & (x_repr <= 5))[0]
-        ax.plot(
-            x_repr[idx],
-            y_ext[idx],
-            color=color,
-            label=label,
-            clip_on=False,
-            **plot_kwargs,
-        )
-
-    if apply_formatting:
-        ax.set_xlim(0.7, 5)
-        ax.set_ylim(0, 1)
-        ax.yaxis.set_major_locator(MultipleLocator(0.5))
-        ax.yaxis.set_minor_locator(MultipleLocator(0.1))
-        # ax.xaxis.set_major_locator(MultipleLocator(2))
-        ax.set_xticks([1, 3, 5])
-        ax.xaxis.set_minor_locator(MultipleLocator(1))
-
-        sns.despine(ax=ax, trim=False, offset=3)
-
-        if show_xlabel:
-            ax.set_xlabel(r"Reproduction number $R_0$")
-        if show_ylabel:
-            ax.set_ylabel("Extinction probability")
-        # if show_title:
-        # ax.set_title(f"{periods}", fontsize=8)
-        if show_legend:
-            ax.legend()
-        if show_legend_in_extra_panel:
-            _legend_into_new_axes(ax)
-
-        fig.tight_layout()
-        # _set_size(ax, 5.5*cm, 3.5*cm)
-
-    return ax
-
-
-# Fig 4b
-@warntry
-def plot_gamma_distribution(ax=None):
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-    ax.set_rasterization_zorder(0)
-
-    mean = 2
-    x = np.arange(0, mean * 4, 0.01)  # days, delta peak for k-> inf at `loc`
-
-    colors = dict()
-    for idx, k in enumerate([1, 10, 100, 1e8]):
-        colors[k] = pt.scientific.sequential.Tokyo_4_r.mpl_colors[idx]
-        colors[1] = "#E0E3B2"
-
-    k_vals = [1e8, 100, 10, 1]
-    for idx, k in enumerate(k_vals):
-        y = scipy.stats.gamma.pdf(x, a=k, loc=0, scale=mean / k)
-        k_str = f"$k={k}$" if k != 1e8 else r"$k\to\infty$"
-        ax.plot(x, y, color=colors[k], label=k_str)
-
-    ax.set_ylim(1e-2, 5)
-    ax.set_xlim(0, 11.49)
-    ax.set_yscale("log")
-    ax.set_xlabel("Period (days)")
-    ax.set_ylabel("Distribtuion")
-
-    ax.xaxis.set_minor_locator(MultipleLocator(1))
-    ax.xaxis.set_major_locator(MultipleLocator(2))
-
-    _legend_into_new_axes(ax)
-    _fix_log_ticks(ax.yaxis, every=1, hide_label_condition=lambda idx: False)
-
-    fig.tight_layout()
-    _set_size(ax, 3.3 * cm, 1.7 * cm)
-    return ax
-
-
-# Fig 4d, SM
-@warntry
-def plot_dispersion_scan_k(h5f, ax=None, periods="slow"):
-
-    assert periods in ["fast", "slow"]
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-
-    def local_plot(data, color, fmt, zorder=0, label=None, hline=None):
-
-        kval = data[0, :]
-        full = data[1, :]
-        errs = data[3, :]
-
-        ax.errorbar(
-            x=kval,
-            y=full,
-            yerr=errs,
-            fmt=fmt,
-            markersize=ms_default,
-            markerfacecolor="white",
-            color=color,
-            ecolor=color,
-            alpha=1,
-            elinewidth=0.5,
-            capsize=1,
-            zorder=zorder,
-            label=label,
-        )
-
-        if hline is not None:
-            ax.axhline(
-                hline,
-                0,
-                1,
-                ls=":",
-                zorder=zorder - 5,
-                color=_alpha_to_solid_on_bg(color, alpha=0.5),
-            )
-
-    p_todo = []
-    if periods == "slow":
-        p_todo.append("2_3")  # blue
-        p_todo.append("6_3")  # red
-        p_todo.append("2_3_surrogate")
-        p_todo.append("6_3_surrogate")
-    elif periods == "fast":
-        p_todo.append("1_0.5")  # blue
-        p_todo.append("1.5_0.5")  # red
-        p_todo.append("1_0.5_surrogate")
-        p_todo.append("1.5_0.5_surrogate")
-
-    c_todo = []  # colors
-    c_todo.append(clrs["n_low"])
-    c_todo.append(clrs["n_high"])
-    c_todo.append(clrs["n_psn"])
-    c_todo.append(clrs["n_psn"])
-
-    m_todo = []  # markers
-    m_todo.append("s")
-    m_todo.append("o")
-    m_todo.append("s")
-    m_todo.append("o")
-
-    # iterate over all periods and chosen colors
-    for period, color, fmt in zip(p_todo, c_todo, m_todo):
-
-        data = h5f[f"disease/gamma_{period}/scan_k"][:]
-
-        # calculate the k->inf limit from delta disease
-        hline = h5f[f"disease/delta_{period}/mean_number_infectious_encounter"][0]
-
-        log.info(f"{period}:\t{hline}")
-
-        zorder = 0
-        if "surrogate" in period:
-            zorder = -5
-
-        local_plot(data, color, fmt, zorder=zorder, label=period, hline=hline)
-
-    ax.set_xscale("log")
-    ax.set_xlim(0.1, 1.5e5)
-    # ax.legend()
-    _fix_log_ticks(ax.xaxis)
-    # ax.yaxis.set_minor_locator(MultipleLocator(1))
-    # ax.yaxis.set_major_locator(MultipleLocator(2))
-    ax.margins(x=0, y=0)
-    # ax.set_ylim(21, 31)
-
-    if show_xlabel:
-        ax.set_xlabel("Dispersion $k$")
-    if show_ylabel:
-        ax.set_ylabel("Pot. inf. encounters")
-    if show_title:
-        ax.set_title(f"{periods}", fontsize=8)
-    if show_legend:
-        ax.legend()
-    if show_legend_in_extra_panel:
-        _legend_into_new_axes(ax)
-
-    fig.tight_layout()
-    _set_size(ax, 4.3 * cm, 3.3 * cm)
-    # _set_size(ax, 4.3 * cm, 2.0 * cm)
-
-    return ax
-
-
-# Fig 4a
-@warntry
-def plot_disease_viral_load_examples():
-    fig, axes = plt.subplots(
-        nrows=3,
-        sharex=True,
-        sharey=True,
-    )
-
-    t_max = 14  # days
-    hist_sample = 100000
-    exsample = 1000
-    exsample2 = 3
-
-    np.random.seed(817)
-
-    def disease_progression(k, mean_latent, mean_infectious, size=100):
-        t_start = scipy.stats.gamma.rvs(a=k, loc=0, scale=mean_latent / k, size=size)
-        t_end = t_start + scipy.stats.gamma.rvs(
-            a=k, loc=0, scale=mean_infectious / k, size=size
-        )
-
-        # naive histogram, hour resolution
-        hist = np.zeros(int(t_max * 24 * 60 + 1))
-
-        for tdx in range(0, len(t_start)):
-            t0 = int(t_start[tdx] * 24 * 60)
-            t1 = int(t_end[tdx] * 24 * 60)
-            if t1 >= len(hist):
-                t1 = int(len(hist) - 1)
-            hist[t0:t1] += 1
-
-        # return hist, t_start, t_end
-        return hist, t_start, t_end
-
-    for idx, k in enumerate([1e8, 10, 1]):
-        ax = axes[idx]
-        ax.set_rasterization_zorder(0)
-
-        hist, t_start, t_end = disease_progression(k, 2, 3, size=hist_sample)
-        x = np.arange(len(hist)) / 24 / 60
-
-        ax.plot(x, hist, zorder=5, ls="--", color=clr_dispersion[k])
-        ax.set_xlim(0, 11.49)
-
-        for tdx in range(0, exsample):
-            y = np.zeros(len(hist))
-            t0 = int(t_start[tdx] * 24 * 60)
-            t1 = int(t_end[tdx] * 24 * 60)
-            if t1 >= len(hist):
-                t1 = int(len(hist) - 1)
-            y[t0:t1] += hist_sample
-            if tdx < exsample2:
-                ax.plot(x, y, alpha=1, zorder=2, color="white", lw=1.5)
-                ax.plot(x, y, alpha=1, zorder=2, color=clr_dispersion[k], lw=0.5)
-            else:
-                ax.plot(x, y, alpha=0.02, zorder=-1, color=clr_dispersion[k], lw=0.5)
-
-    ax = axes[-1]
-    ax.set_xlabel("Time (in days)")
-    ax.xaxis.set_minor_locator(MultipleLocator(1))
-    ax.xaxis.set_major_locator(MultipleLocator(2))
-    # for idx, lab in enumerate(ax.xaxis.get_ticklabels()):
-    #     if (idx) % 2 == 0:
-    #         lab.set_visible(False)
-    fig.tight_layout()
-
-
+# Fig 2b
 @warntry
 def plot_disease_dist_infectious_encounters(
     which=["data", "data_rand", "data_rand_all"],
@@ -2169,6 +1104,7 @@ def plot_disease_dist_infectious_encounters(
                 log.debug(f"p_full {p_full}")
 
                 ref = _ev(num_encounter, p_full)
+                log.debug(f"expectation value of num encounters: {ref}")
                 ax.axvline(
                     ref,
                     0,
@@ -2231,6 +1167,7 @@ def plot_disease_dist_infectious_encounters(
     return ax
 
 
+# Fig 2d
 @warntry
 def plot_disease_dist_secondary_infections(
     which=["data", "data_rand", "data_rand_all"],
@@ -2398,7 +1335,7 @@ def plot_disease_dist_secondary_infections(
     ax.xaxis.set_minor_locator(MultipleLocator(5))
     ax.yaxis.set_minor_locator(MultipleLocator(0.05))
     ax.yaxis.set_major_locator(MultipleLocator(0.2))
-    ax.xaxis.set_major_locator(MultipleLocator(20))
+    ax.xaxis.set_major_locator(MultipleLocator(10))
     sns.despine(ax=ax, trim=False, offset=3)
     # we probably want to compare with Lloyd Smith
 
@@ -2426,6 +1363,1507 @@ def plot_disease_dist_secondary_infections(
     fig.tight_layout()
 
     return ax
+
+
+# Fig 2e
+@warntry
+def plot_dispersion_cutplane(
+    coords, x_dim=None, par="r", which="data", ax=None, **plot_kwargs
+):
+    """
+    Plot of the Maximumlikelihood fits of a Negative Binomial to Offspring distributions.
+
+    # Parameters
+    x_dim : str or None
+        which of the variables to plot on the x-axis, if None,
+        uses the one not specified in coords.
+    par : str
+        "r" or "p", which fit parameter to plot. The "r" parameter is what Lloyd-Smith
+        commonly denotes with "k" the dispersion parameter. Lower "k" -> more dispersion.
+    coords : dict with keys
+        "R0", "infectious", "latent"
+        mapping to selection in the ndim array
+    """
+    plot_kwargs = plot_kwargs.copy()
+
+    # dimensionality checks and prep
+    dims = ["R0", "infectious", "latent"]
+    if x_dim is None:
+        try:
+            # use the one thats not specified
+            x_dim = [d for d in dims if d not in coords.keys()][0]
+        except:
+            raise ValueError(
+                "`x_dim` must be specified if you specify all 3 keys in `coords`"
+            )
+
+    # get the data
+    ndim_data = _dispersion_data_prep(coords, par, which)
+
+    # we allow one dim to iterate over to get multiple, fading lines
+    dim_lens = [len(ndim_data[k]) for k in dims]
+    assert 1 in dim_lens, f"Need at least one dimension to be of length 1"
+    noniterdim = dims[dim_lens.index(1)]
+    # the iterdim might be of len 1, too, but thats okay.
+    iterdim = [d for d in dims if d not in [x_dim, noniterdim]][0]
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    # put noniterdim value into legend below
+    nk_val = ndim_data[noniterdim].values[0]
+
+    # iterate over the remaining dim
+    for kdx, k_val in enumerate(ndim_data[iterdim].to_numpy()):
+        this_ndim_data = ndim_data.sel({iterdim: k_val})
+        # sanity check, only have one dimension remaining at this point
+        assert len([d for d in this_ndim_data.shape if d > 1]) <= 1
+
+        this_ndim_data = this_ndim_data.squeeze()
+
+        kwargs = plot_kwargs.copy()
+        kwargs.setdefault("label", f"{iterdim}={k_val}, {noniterdim}={nk_val}")
+        kwargs.setdefault(
+            "alpha", bnb.plt.fade(kdx, len(ndim_data[iterdim]), invert=True)
+        )
+
+        kwargs.setdefault("color", clrs.get(which, "black"))
+        kwargs.setdefault("s", ms_default * 1.5)
+        kwargs.setdefault("linewidth", 0.5)
+
+        if which == "data":
+            kwargs.setdefault("marker", "o")
+            kwargs.setdefault("zorder", 2)
+            kwargs.setdefault("edgecolor", kwargs["color"])
+            kwargs.setdefault("facecolor", kwargs["color"])
+            # if np.all(coords["latent"] == 6.0):
+            # kwargs.setdefault("facecolor", "w")
+
+        elif which == "data_rand":
+            kwargs.setdefault("marker", "o")
+            kwargs.setdefault("zorder", 6)
+        elif which == "data_rand_all":
+            kwargs.setdefault("marker", "^")
+            kwargs.setdefault("zorder", 4)
+
+        # we cant set clip_on to False, but still want to limit data range
+        # thus, remove some points from dataset
+        if x_dim == "infectious":
+            this_ndim_data = this_ndim_data.where(
+                (this_ndim_data["infectious"] <= 7) & (this_ndim_data["infectious"] >= 1),
+                drop=True,
+            )
+        elif x_dim == "latent":
+            this_ndim_data = this_ndim_data.where(
+                (this_ndim_data["latent"] <= 7), drop=True
+            )
+
+        ax.scatter(
+            this_ndim_data[x_dim],
+            this_ndim_data,
+            clip_on=False,
+            **kwargs,
+        )
+
+        # highligh points of interest, crazy customization, but nvm
+        if which == "data":
+            for tlat in [2.0, 6.0]:
+                # this should leave only the one point we are interested in
+                temp = this_ndim_data
+                try:
+                    temp = temp.sel(latent=tlat)
+                except:
+                    pass
+                try:
+                    temp = temp.sel(infectious=3.0)
+                except:
+                    pass
+                try:
+                    temp = temp.sel(R0=3.0)
+                except:
+                    pass
+
+                # do not plot twice.
+                if tlat != temp["latent"].values:
+                    continue
+
+                kwargs["marker"] = "s"
+                # kwargs["s"] += 0.25
+                if tlat == 2.0:
+                    kwargs["edgecolor"] = clrs["n_low"]
+                    kwargs["facecolor"] = clrs["n_low"]
+                elif tlat == 6.0:
+                    kwargs["edgecolor"] = clrs["n_high"]
+                    kwargs["facecolor"] = clrs["n_high"]
+                ax.scatter(temp[x_dim], temp, clip_on=False, **kwargs)
+
+    # customization for our paper case where tlat is the x axis
+    if x_dim == "latent":
+        ax.set_xlim(0.0, 7.25)
+        ax.set_ylim(0.0, 1.125)
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        ax.xaxis.set_ticks([1, 7])
+        ax.yaxis.set_minor_locator(MultipleLocator(0.25))
+    elif x_dim == "infectious":
+        ax.set_xlim(0.75, 7.25)
+        ax.set_ylim(0.0, 1.125)
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        ax.xaxis.set_ticks([1, 7])
+        ax.yaxis.set_minor_locator(MultipleLocator(0.25))
+    elif x_dim == "R0":
+        # match y, we will hack this together in post
+        ax.set_ylim(0.0, 1.125)
+        ax.set_xlim(1, 5)
+        ax.xaxis.set_ticks([1, 5])
+        ax.yaxis.set_minor_locator(MultipleLocator(0.25))
+
+    xlabels = dict(
+        R0="Reproduction number $R_0$",
+        infectious="Infectious period",
+        latent="Latent period",
+    )
+    ylabels = dict(
+        r="Dispersion parameter $r$", p="Probability of success $p$", disp="Dispersion"
+    )
+
+    if show_xlabel:
+        ax.set_xlabel(xlabels.get(x_dim, x_dim))
+    if show_ylabel:
+        ax.set_ylabel(ylabels.get(par, par))
+    if show_title:
+        ax.set_title(f"{which}")
+    if show_legend:
+        ax.legend()
+
+    return ax
+
+
+# Fig 2f (left)
+@warntry
+def plot_extinction_probability(
+    h5f=None, ax=None, apply_formatting=True, which="analytic"
+):
+    """
+    needs a different h5f than most plot functions:
+    the branchin process one, by default `branching_process_Copenhagen_filtered_15min`
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    # TODO make consistent
+    if h5f is None and (which == "analytic"):
+        h5f = bnb.hi5.recursive_load(
+            "./out/analytic_survival_Copenhagen_filtered_15min.h5",
+            dtype=bdict,
+            keepdim=True,
+        )
+    elif h5f is None and which == "branching_process":
+        h5f = bnb.hi5.recursive_load(
+            "./out/branching_process_Copenhagen_filtered_15min.h5",
+            dtype=bdict,
+            keepdim=True,
+        )
+
+    if which == "analytic":
+        data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p"
+        data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p"
+        rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p"
+        rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p"
+        rand_all_2 = "rand_all/infectious_3.00_latent_2.00/survival_probability_p"
+        rand_all_6 = "rand_all/infectious_3.00_latent_6.00/survival_probability_p"
+    elif which == "branching_process":
+        data_2 = "data/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
+        data_6 = "data/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
+        rand_2 = "rand/infectious_3.00_latent_2.00/survival_probability_p/N0=1/100000"
+        rand_6 = "rand/infectious_3.00_latent_6.00/survival_probability_p/N0=1/100000"
+        rand_all_2 = None
+        rand_all_6 = None
+
+    # for path in [data_2, data_6, rand_2, rand_6, rand_all_2, rand_all_6]:
+    for path in [
+        rand_all_2,
+        rand_2,
+        data_6,
+        data_2,
+    ]:
+
+        plot_kwargs = dict()
+        # customize plot style depending on data to plot
+        if path is None:
+            # not all defined for branching process
+            continue
+        if path[0:8] == "rand_all":
+            # randomized across trains and individuals
+            plot_kwargs = dict(linestyle=(0, (2.0, 2.0)), dash_capstyle="round")
+            color = clrs["data_rand_all"]
+            label = "randomized all"
+            if "_2" not in path:
+                color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
+        elif path[0:4] == "rand":
+            # randomized by train
+            color = clrs["n_psn"]
+            label = "randomized"
+            if "_2" not in path:
+                color = _alpha_to_solid_on_bg(color, alpha=0.9, bg="black")
+
+        elif "latent_2.0" in path:
+            color = clrs["n_low"]
+            label = "data"
+        elif "latent_6.0" in path:
+            color = clrs["n_high"]
+            label = "data"
+        lat = re.search("latent_(\d+)", path, re.IGNORECASE).group(1)
+        label += f" Tlat={lat}"
+
+        data = h5f[path]
+        x_prob = data[0, :]
+        x_repr = data[1, :]
+        y_surv = data[2, :]
+
+        # we load survivial probability but decided to plot extinction probability
+        y_ext = 1 - y_surv
+
+        # limit xrange here, so we can keep clip_on=False
+        idx = np.where((x_repr > 0.7) & (x_repr <= 5))[0]
+        ax.plot(
+            x_repr[idx],
+            y_ext[idx],
+            color=color,
+            label=label,
+            clip_on=False,
+            **plot_kwargs,
+        )
+
+    if apply_formatting:
+        ax.set_xlim(0.7, 5)
+        ax.set_ylim(0, 1)
+        ax.yaxis.set_major_locator(MultipleLocator(0.5))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.1))
+        # ax.xaxis.set_major_locator(MultipleLocator(2))
+        ax.set_xticks([1, 3, 5])
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+
+        sns.despine(ax=ax, trim=False, offset=3)
+
+        if show_xlabel:
+            ax.set_xlabel(r"Reproduction number $R_0$")
+        if show_ylabel:
+            ax.set_ylabel("Extinction probability")
+        # if show_title:
+        # ax.set_title(f"{periods}", fontsize=8)
+        if show_legend:
+            ax.legend()
+        if show_legend_in_extra_panel:
+            _legend_into_new_axes(ax)
+
+        fig.tight_layout()
+        # _set_size(ax, 5.5*cm, 3.5*cm)
+
+    return ax
+
+
+# Fig 2f (right)
+@warntry
+def plot_dispersion_extinction_correlate(
+    coords, which="data", relative_to=None, ax=None, **plot_kwargs
+):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    # load the data for different r
+    dispersion = _dispersion_data_prep(coords, "disp", which)
+    extinction = _extinction_data_prep(coords, which)
+
+    # normalize?
+    if relative_to is not None:
+        ref_d = _dispersion_data_prep(coords, "disp", relative_to)
+        ref_e = _extinction_data_prep(coords, relative_to)
+        # lets have the very strong assumption that the shapes match
+        # dispersion = dispersion / ref_d
+        extinction = extinction / ref_e
+
+    # R0 values between disp and ext are not guaranteed to match, cos different pipelines
+    for key in ["R0", "infectious", "latent"]:
+        legit = np.intersect1d(dispersion[key].values, extinction[key].values)
+        dispersion = dispersion.sel({key: legit})
+        extinction = extinction.sel({key: legit})
+
+    # now we can plot
+    kwargs = plot_kwargs.copy()
+    kwargs.setdefault("label", f"{which}")
+    kwargs.setdefault("color", clrs.get(which, "black"))
+    kwargs.setdefault("s", ms_default * 1.5)
+    kwargs.setdefault("linewidth", 0.0)
+
+    x_max = 3
+    # we want to keep clip_on = False but still limit xrange
+    dispersion[np.where(dispersion > x_max)] = np.nan
+    ax.scatter(
+        dispersion,
+        extinction,
+        clip_on=False,
+        **kwargs,
+    )
+
+    ax.set_xlim(0, x_max)
+    ax.set_ylim(0, 1)
+
+    ax.yaxis.set_major_locator(MultipleLocator(0.5))
+    ax.yaxis.set_minor_locator(MultipleLocator(0.1))
+    # ax.set_xticks([1, 3, 5])
+    ax.xaxis.set_major_locator(MultipleLocator(1))
+    ax.xaxis.set_minor_locator(MultipleLocator(0.5))
+
+    if show_xlabel:
+        ax.set_xlabel(r"Dispersion $\alpha$")
+    if show_ylabel:
+        ax.set_ylabel(f"Extinction probability")
+
+    fig.tight_layout()
+
+    return ax
+
+
+# Fig 3a
+@warntry
+def plot_disease_mean_number_of_infectious_encounter_cutplane(
+    ax=None,
+    which=["data"],
+    relative_to=None,
+    plot_kwargs=None,
+    t_inf=3,
+):
+    """
+    # Parameters
+    how : str, "relative" or "absolute"
+    t_inf : for which infectious period [in days] to draw the cutplane
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6 * cm, 2.5 * cm))
+    else:
+        fig = ax.get_figure()
+
+    # load the data, but we need some extra details so load the recursrive,
+    # and filter later
+    dset = "disease/delta/scan_mean_number_infectious_encounter"
+
+    def get_2d(w, dset):
+        file = file_path_shorthand(w)
+        h5f = bnb.hi5.recursive_load(
+            file,
+            dtype=bdict,
+            keepdim=True,
+            skip=["trains"],
+        )
+        h5f = h5f[dset]
+
+        data_2d = h5f["mean"][:]
+        range_inf = h5f["range_infectious"][:]
+        range_lat = h5f["range_latent"][:]
+
+        return data_2d, range_inf, range_lat
+
+    for wdx, w in enumerate(which):
+
+        data_2d, range_inf, range_lat = get_2d(w, dset)
+
+        if relative_to is not None:
+            norm_2d, norm_range_inf, norm_range_lat = get_2d(relative_to, dset)
+            assert np.all(range_lat == norm_range_lat)
+            assert np.all(range_inf == norm_range_inf)
+            data_2d /= norm_2d
+            data_2d *= 100  # in percent
+
+        rdx = np.where(range_inf == t_inf)[0][0]
+        data_1d = data_2d[rdx, :]
+
+        try:
+            kwargs = plot_kwargs[w].copy()
+        except:
+            kwargs = default_plot_kwargs(w)
+
+        ax.plot(range_lat, data_1d, **kwargs)
+
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
+    ax.margins(x=0, y=0)
+    if relative_to is None:
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        ax.yaxis.set_minor_locator(MultipleLocator(1))
+        ax.set_ylim(22, 30)
+
+    if show_xlabel:
+        ax.set_xlabel("Latent period (days)")
+    if show_ylabel:
+        how = "absolute" if relative_to is None else "relative"
+        ax.set_ylabel(f"Encounters ({how})")
+
+    fig.tight_layout()
+
+    return ax
+
+
+# Fig 3b, Fig 4, SM
+@warntry
+def plot_disease_mean_number_of_infectious_encounter_2d(
+    ax=None, which="data", relative_to=None, control_plot=False
+):
+    """
+    # Parameters
+    which : str, "data" or samples from h5f["sample/"], e.g. "poisson_inhomogeneous"
+    how : str, "relative" or "absolute"
+    control_plot : bool, set to `True` for use in Fig. 4 for slightly different styling
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+    ax.set_rasterization_zorder(0)
+
+    dset = "disease/delta/scan_mean_number_infectious_encounter"
+
+    def get_2d(w, dset):
+        file = file_path_shorthand(w)
+        h5f = bnb.hi5.recursive_load(
+            file,
+            dtype=bdict,
+            keepdim=True,
+            skip=["trains"],
+        )
+        h5f = h5f[dset]
+
+        data_2d = h5f["mean"][:]
+        range_inf = h5f["range_infectious"][:]
+        range_lat = h5f["range_latent"][:]
+
+        return data_2d, range_inf, range_lat
+
+    data_2d, range_inf, range_lat = get_2d(which, dset)
+
+    # maybe we normalize
+    if relative_to is not None:
+        norm_2d, norm_range_inf, norm_range_lat = get_2d(relative_to, dset)
+        assert np.all(range_lat == norm_range_lat)
+        assert np.all(range_inf == norm_range_inf)
+        data_2d /= norm_2d
+        data_2d *= 100  # in percent
+
+    # customize style
+    # custom color maps
+    palette = [
+        (0, "#C31B2B"),
+        (0.25, "#ffad7e"),
+        (0.5, "#E7E7B6"),
+        (0.85, "#195571"),
+        (1, "#011A39"),
+    ]
+    cmap = LinearSegmentedColormap.from_list("custom_cmap", palette, N=512)
+
+    if relative_to is None:
+        kwargs = dict(
+            vmin=0,
+            vmax=None,
+            cmap=cmap.reversed(),
+        )
+
+    else:
+        kwargs = dict(
+            vmin=50,
+            vmax=150,
+            center=100,
+            cmap=cmap.reversed(),
+        )
+
+    if control_plot:
+        kwargs["cbar"] = False
+
+    # draw!
+    sns.heatmap(
+        data_2d,
+        ax=ax,
+        square=True,
+        xticklabels=False,
+        yticklabels=False,
+        zorder=-5,
+        rasterized=True,
+        **kwargs,
+    )
+
+    xticklabels = []
+    xticks = []
+    for idx, x in enumerate(range_lat):
+        if x.is_integer() and x > 0 and x < 8:
+            xticks.append(idx)
+            if control_plot and x % 2 != 1:
+                xticklabels.append("")
+            else:
+                xticklabels.append(str(int(x)))
+
+    yticklabels = []
+    yticks = []
+    for idy, y in enumerate(range_inf):
+        if y.is_integer() and y > 0 and y < 8:
+            yticks.append(idy)
+            if control_plot and y % 2 != 1:
+                yticklabels.append("")
+            else:
+                yticklabels.append(str(int(y)))
+
+    # ax.set_xlabel("Latent period (days)")
+    # ax.set_ylabel("Infectious period (days)")
+    # ax.set_title(which)
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticklabels)
+    ax.invert_yaxis()
+
+    if not control_plot:
+        if show_xlabel:
+            ax.set_xlabel(r"Latent period (days)")
+        if show_ylabel:
+            ax.set_ylabel(r"Infectious period (days)")
+
+    if show_title:
+        ax.set_title(f"{which}", fontsize=8)
+
+    fig.tight_layout()
+
+    if control_plot:
+        ax.tick_params(
+            axis="both",
+            which="major",
+            length=1.5,
+        )
+
+    return ax
+
+
+# Fig 3c, Fig 4, SM
+@warntry
+def plot_conditional_encounter_rate(
+    ax=None, which=["data"], shaded_regions=False, plot_kwargs=None
+):
+    """
+    plot the conditional encounter rate from data or as obtained for generative processes
+
+    # Parameters
+    which : list of str
+        e.g. `["data", "poisson_inhomogeneous", "poisson_inhomogeneous_weighted_trains"]`
+        or `["data", "weibul_renewal_process", "weibul_renewal_process_weighted_trains"]`
+    shaded_regions: bool,
+        settings this to `True` disables the shaded area highlighting the areas of 3days infectioustness after tlat=2 and tlat=4, and sets different xlabels
+    plot_kwargs: dict of dicts
+        keys matching the strings in `which`
+        passed to the plotting functions
+
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+    ax.set_rasterization_zorder(0)
+
+    if not isinstance(which, list):
+        which = list(which)
+
+    norm_rate = 1 / 60 / 60 / 24
+    e_step = 25
+
+    for wdx, w in enumerate(which):
+        log.info(f"conditional encounter rate for {w}")
+        file = file_path_shorthand(w)
+        dset = "conditional_encounter_rate"
+
+        log.info(file)
+
+        try:
+            data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
+        except:
+            # w might be a loaded array
+            data = np.copy(w)
+            w = f"custom {wdx}"
+
+        r_time = data[0, :] * norm_rate
+        r_full = data[1, :] / norm_rate
+        try:
+            r_errs = data[1, :] / norm_rate
+        except:
+            pass
+
+        try:
+            kwargs = plot_kwargs[w].copy()
+        except:
+            # no customizations set, use the defaults
+            kwargs = default_plot_kwargs(w)
+
+        ax.plot(r_time, r_full, **kwargs)
+
+        if w == "data" and shaded_regions:
+            # shaded regions for examples: 2,3 and 6,3
+            idx = np.where((r_time > 6) & (r_time < 9))
+            ax.fill_between(
+                r_time[idx],
+                y1=np.zeros(len(idx)),
+                y2=r_full[idx],
+                color="#faad7c",
+                alpha=0.4,
+                lw=0,
+                zorder=-3,
+            )
+
+            idx = np.where((r_time > 2) & (r_time < 5))
+            ax.fill_between(
+                r_time[idx],
+                y1=np.zeros(len(idx)),
+                y2=r_full[idx],
+                color="#49737a",
+                alpha=0.3,
+                lw=0,
+                zorder=-3,
+            )
+
+    ax.set_xlim(-0.5, 10.5)
+    ax.set_ylim(0, 60)
+
+    if shaded_regions:
+        # in the first figure, where we show regions,
+        # we want a bigger panel with more detailed ticks
+        ax.xaxis.set_major_locator(MultipleLocator(1))
+        ax.xaxis.set_minor_locator(MultipleLocator(0.5))
+        for label in ax.xaxis.get_ticklabels()[::2]:
+            label.set_visible(False)
+        ax.set_xlim(0.0, 10.49)
+    else:
+        ax.xaxis.set_major_locator(MultipleLocator(2))
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        ax.yaxis.set_minor_locator(MultipleLocator(10))
+
+    ax.margins(x=0, y=0)
+
+    if show_xlabel:
+        ax.set_xlabel(r"Time (days)")
+    if show_ylabel:
+        ax.set_ylabel(r"Rate (1/day)")
+    if show_title:
+        ax.set_title(r"Conditional encounter rate", fontsize=8)
+    if show_legend:
+        ax.legend()
+    if show_legend_in_extra_panel:
+        _legend_into_new_axes(ax)
+
+    fig.tight_layout()
+    _set_size(ax, 3.0 * cm, 1.8 * cm)
+
+    return ax
+
+
+# Fig 3e
+# needs different h5f, not part of main file yet:
+# sample_continuous_branching_Copenhagen_filtered_15min.h5
+@warntry
+def plot_case_numbers(
+    h5f=None,
+    which_latent=["latent_1.00", "latent_2.00", "latent_6.00"],
+    average_over_rep=True,
+    apply_formatting=True,
+):
+    fig, ax = plt.subplots()
+
+    if h5f is None:
+        h5f = bnb.hi5.recursive_load(
+            "./out/sample_continuous_branching_Copenhagen_filtered_15min.h5",
+            dtype=bdict,
+            keepdim=True,
+        )
+
+    def plot_cases(cases, color, **kwargs):
+        num_rep = len(cases.keys())
+        k0 = list(cases.keys())[0]
+        x = cases[k0][0, :] / 60 / 60 / 24 / 7
+        y_all = np.zeros((len(x), num_rep))
+        for idx, key in enumerate(cases.keys()):
+            y_all[:, idx] = cases[key][1, :]
+        y_all[y_all == 0] = np.nan
+
+        if not average_over_rep:
+            selected_rep = 3
+            y_mean = y_all[:, selected_rep]
+            y_err = np.ones(len(y_mean)) * np.nan
+        else:
+            y_mean = np.nanmean(y_all, axis=-1)
+            y_err = np.nanstd(y_all, axis=-1) / np.sqrt(num_rep)
+
+        ax.plot(x, y_mean, color=color, **kwargs)
+
+    for wdx, w in enumerate(which_latent):
+        log.info(w)
+        real = h5f["measurements"]["cases"][w]
+        surr = h5f["measurements_randomized_per_train"]["cases"][w]
+        base_color = f"C{wdx}"
+        if "1.00" in w:
+            base_color = "#868686"
+        elif "2.00" in w:
+            base_color = clrs["n_low"]
+        elif "6.00" in w:
+            base_color = clrs["n_high"]
+        plot_cases(surr, color=clrs["data_rand"], label=f"surr {w}")
+        plot_cases(real, color=base_color, label=f"real {w}")
+
+    if apply_formatting:
+        # ax.axhline(1e4, 0, 1, color="gray", ls="--")
+        ax.set_ylim(11, 1.5e6)
+        ax.set_xlim(0, 10.5)
+        ax.xaxis.set_major_locator(MultipleLocator(4))
+        ax.xaxis.set_minor_locator(MultipleLocator(1))
+        # for label in ax.xaxis.get_ticklabels()[::2]:
+        #     label.set_visible(False)
+        ax.set_yscale("log")
+        sns.despine(ax=ax, right=True, top=True, trim=False, offset=3)
+        _fix_log_ticks(ax.yaxis, hide_label_condition=lambda idx: idx % 2 == 1)
+
+    if show_ylabel:
+        ax.set_ylabel("Daily new cases")
+    if show_xlabel:
+        ax.set_xlabel("Time (weeks)")
+    if show_legend:
+        ax.legend(loc="lower left")
+    if show_legend_in_extra_panel:
+        _legend_into_new_axes(ax)
+
+    if apply_formatting:
+        fig.tight_layout()
+        _set_size(ax, 3.0 * cm, 2.3 * cm)
+
+    return ax
+
+
+# Fig 3f
+@warntry
+def plot_growth_rate(
+    analytic_solution=False,
+    shaded_regions=True,
+):
+    fig, ax = plt.subplots()
+
+    rand = np.loadtxt(
+        "./out/analysis_continuous_branching_measurements_randomized_per_train.dat",
+        unpack=True,
+    )
+    data = np.loadtxt(
+        "./out/analysis_continuous_branching_measurements.dat",
+        unpack=True,
+    )
+    # time_x = rand[0, :]
+    time_x = data[0, :]
+    data_y = data[1, :]
+    rand_y = rand[1, :]
+
+    # convert to 1/days
+    rand_y[:] *= 60 * 60 * 24
+    data_y[:] *= 60 * 60 * 24
+
+    # Analytic solution
+    # Johannes derived a closed formula for R(lambda, t_lat) but its not
+    # possible to solve for lambda(R, t_lat) so we do it numerically.
+    if analytic_solution:
+        from scipy.optimize import minimize
+
+        t_ift = 3
+
+        def func(lam):
+            return lam * t_ift * np.exp(lam * t_lat) / (1.0 - np.exp(-lam * t_ift))
+
+        def delta(lam, R):
+            yt = func(lam)
+            return (yt - R) ** 2
+
+        # We have an estimate of R from our measured eift * pift: 25 * 0.12 ~= 3
+        # as we do in `plot_disease_mean_number_of_infectious_encounter_cutplane`
+        target_R = 2.9483780
+        first_guess = 0.5
+        lam_res = np.ones(len(time_x)) * np.nan
+        for idx, t_lat in enumerate(time_x):
+            res = minimize(
+                delta, first_guess, args=(target_R), method="Nelder-Mead", tol=1e-6
+            )
+            lam_res[idx] = res.x[0]
+
+        ax.plot(
+            time_x, lam_res, lw=1, label="_analytic_solution", color=clrs["data_rand"]
+        )
+
+    ax.errorbar(
+        time_x[:],
+        rand_y[:],
+        yerr=rand[2, :],
+        label="rand",
+        color=clrs["data_rand"],
+        fmt="o",
+        markersize=ms_default,
+        alpha=1,
+        elinewidth=0.5,
+        capsize=1,
+        clip_on=False,
+    )
+    ax.errorbar(
+        time_x[:],
+        data_y[:],
+        yerr=data[2, :],
+        label="data",
+        color=clrs["data"],
+        fmt="o",
+        markersize=ms_default,
+        alpha=1,
+        elinewidth=0.5,
+        capsize=1,
+        clip_on=False,
+    )
+
+    # shaded regions
+    # for the crossings of colors that do not fall on sampled data points, we interpolate
+    # and manually ad the points
+    if shaded_regions:
+        ins_x = 0.82
+        ins_y = 0.5124
+        idx = np.argwhere(time_x[:] > ins_x)[0][0]
+        time_x = np.insert(time_x, idx, ins_x)
+        data_y = np.insert(data_y, idx, ins_y)
+        rand_y = np.insert(rand_y, idx, ins_y)
+
+        idx = np.where((time_x[:] >= 0) & (time_x[:] <= ins_x))[0]
+        ax.fill_between(
+            time_x[idx],
+            y1=rand_y[idx],
+            y2=data_y[idx],
+            color="#faad7c",
+            alpha=0.4,
+            lw=0,
+            zorder=1,
+        )
+        idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 4))[0]
+        ax.fill_between(
+            time_x[idx],
+            y1=rand_y[idx],
+            y2=data_y[idx],
+            color="#49737a",
+            alpha=0.4,
+            lw=0,
+            zorder=1,
+        )
+
+        # insert another point
+        ins_x = 7.32
+        ins_y = 0.123
+        idx = np.argwhere(time_x[:] > ins_x)[0][0]
+        time_x = np.insert(time_x, idx, ins_x)
+        data_y = np.insert(data_y, idx, ins_y)
+        rand_y = np.insert(rand_y, idx, ins_y)
+
+        idx = np.where((time_x[:] >= 4) & (time_x[:] <= ins_x))[0]
+        ax.fill_between(
+            time_x[idx],
+            y1=rand_y[idx],
+            y2=data_y[idx],
+            color="#faad7c",
+            alpha=0.4,
+            lw=0,
+            zorder=1,
+        )
+
+        idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 8))[0]
+        ax.fill_between(
+            time_x[idx],
+            y1=rand_y[idx],
+            y2=data_y[idx],
+            color="#49737a",
+            alpha=0.4,
+            lw=0,
+            zorder=1,
+        )
+
+    # ax.legend()
+    ax.set_yscale("log")
+    ax.set_ylim(1e-1, 2.0e-0)
+    _fix_log_ticks(ax.yaxis, every=1)
+    _pretty_log_ticks(ax.yaxis)
+    ax.set_xlim(0, 8)
+    ax.xaxis.set_major_locator(MultipleLocator(2))
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    # ax.yaxis.set_major_locator(MultipleLocator(2))
+    # ax.yaxis.set_minor_locator(MultipleLocator(1))
+
+    sns.despine(ax=ax, right=True, top=True, trim=False, offset=3)
+
+    if show_ylabel:
+        ax.set_ylabel(r"Spreading rate $\lambda$\\n(1 / day)")
+    if show_xlabel:
+        ax.set_xlabel("Latent period (days)")
+    if show_legend:
+        ax.legend(loc="lower left")
+    if show_legend_in_extra_panel:
+        _legend_into_new_axes(ax)
+
+    fig.tight_layout()
+    _set_size(ax, 5.0 * cm, 2.8 * cm)
+
+    return ax
+
+
+# Fig 4
+@warntry
+def plot_etrain_rate(
+    ax=None,
+    which=["data"],
+    plot_kwargs=None,
+):
+    if ax is None:
+        with plt.rc_context(
+            {
+                "xtick.labelsize": 5,
+                "ytick.labelsize": 6,
+                # labels are weekdays, need more space. and we place them on the minors
+                "xtick.minor.pad": 6,
+            }
+        ):
+            fig, ax = plt.subplots(figsize=(6.5 * cm, 4.5 * cm))
+
+    else:
+        fig = ax.get_figure()
+    ax.set_rasterization_zorder(0)
+
+    norm_rate = 1 / 60 / 60 / 24
+
+    for wdx, w in enumerate(which):
+        file = file_path_shorthand(w)
+        dset = "rate"
+
+        data = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)
+
+        r_time = data[0, :] / 60 / 60 / 24
+        r_full = data[1, :] / norm_rate
+        r_jack = data[2, :] / norm_rate
+        r_errs = data[3, :] / norm_rate
+
+        try:
+            kwargs = plot_kwargs[w].copy()
+        except:
+            # no customizations set, use the defaults
+            if w == "data":
+                # data gets plotted as errorbars
+                kwargs = default_plot_kwargs(w, for_errorbars=True)
+            else:
+                kwargs = default_plot_kwargs(w, for_errorbars=False)
+
+        if w == "data":
+            ax.errorbar(x=r_time, y=r_full, yerr=r_errs, **kwargs)
+        else:
+            ax.plot(r_time, r_full, **kwargs)
+
+    ax.set_xlim(0, 7)
+    ax.set_ylim(0, None)
+    ax.yaxis.set_minor_locator(MultipleLocator(5))
+
+    if show_xlabel:
+        ax.set_xlabel(r"Time (days of the week)")
+    if show_ylabel:
+        ax.set_ylabel(r"Rate (encounters per day)")
+    if show_title:
+        ax.set_title(r"Encounter rate (1 / day)", loc="left", fontsize=8)
+    if show_legend:
+        ax.legend()
+    if show_legend_in_extra_panel:
+        _legend_into_new_axes(ax)
+
+    # weekdays on x axis
+    ax.xaxis.set_major_locator(MultipleLocator(1))
+    ax.xaxis.set_major_formatter(matplotlib.ticker.NullFormatter())
+    ax.xaxis.set_minor_locator(MultipleLocator(0.5))
+    # this is only true for copenhagen
+    days = ["Su", "Mo", "Tu", "Wd", "Th", "Fr", "Sa"]
+    # days = ["", "Mo", "", "", "", "Fr", ""]
+    # days = ["Su", "M", "T", "Wd", "T", "F", "Sa"]
+
+    try:
+        # dirty workaround for invs15
+        if "InVS15" in h5f["h5/filename"]:
+            days = ["Mo", "Tu", "Wd", "Th", "Fr", "Sa", "Su"]
+    except:
+        pass
+
+    def tick(x, pos):
+        if x % 1 == 0.5 and x < 7:
+            return days[int(x)]
+        else:
+            return ""
+
+    ax.xaxis.set_minor_formatter(matplotlib.ticker.FuncFormatter(tick))
+    ax.tick_params(which="minor", axis="x", length=0)
+
+    ax.margins(x=0, y=0.0)
+    # ax.legend()
+
+    # fig.tight_layout()
+    _set_size(ax, 3.1 * cm, 2.0 * cm)
+
+    return ax
+
+
+# Fig 4, SM
+@warntry
+def plot_dist_inter_encounter_interval(
+    ax=None, which=["data"], log_or_lin="log", plot_kwargs=None
+):
+    with plt.rc_context({"xtick.labelsize": 6, "ytick.labelsize": 6}):
+        if ax is None:
+            fig, ax = plt.subplots(figsize=(6.5 * cm, 4.5 * cm))
+        else:
+            fig = ax.get_figure()
+        ax.set_rasterization_zorder(0)
+
+    # data is in seconds
+    iei_norm = 1 / 60 / 60 / 24
+
+    assert log_or_lin in ["log", "lin"]
+
+    for wdx, w in enumerate(which):
+        file = file_path_shorthand(w)
+        dset = "distribution_inter_encounter_intervals"
+
+        if log_or_lin == "log":
+            dset += "_logbin"
+
+        dat = bnb.hi5.load(file, dset, raise_ex=True, keepdim=True)[:]
+
+        iei = dat[0, :] * iei_norm
+        prob = dat[1, :]
+        jack_iei = dat[2, :] * iei_norm
+        jack_prob = dat[3, :]
+        errs_iei = dat[4, :] * iei_norm
+        errs_prob = dat[5, :]
+
+        # ------------------------------------------------------------------------------ #
+        # plot
+        # ------------------------------------------------------------------------------ #
+
+        try:
+            kwargs = plot_kwargs[w].copy()
+        except:
+            # no customizations set, use the defaults
+            if w == "data":
+                # data gets plotted as errorbars
+                kwargs = default_plot_kwargs(w, for_errorbars=True)
+            else:
+                kwargs = default_plot_kwargs(w, for_errorbars=False)
+
+        # for data, we have error bars in x and y
+        if w == "data":
+            e_step = 1
+            ax.errorbar(
+                x=iei[::e_step],
+                y=prob[::e_step],
+                xerr=errs_iei[::e_step],
+                yerr=errs_prob[::e_step],
+                **kwargs,
+            )
+
+        else:
+            ax.plot(iei, prob, **kwargs)
+
+    # annotations
+    ls_kwargs = dict(
+        linestyle=(0, (0.01, 2)),
+        dash_capstyle="round",
+        color="#BFBFBF",
+        lw=0.8,
+        zorder=-1,
+    )
+    ax.axvline(1 / 24 / 60 * 5, 0, 1, **ls_kwargs)  # 5 min
+    ax.axvline(1 / 24, 0, 1, **ls_kwargs)  # hour
+    ax.axvline(1, 0, 1, **ls_kwargs)  # day
+    ax.axvline(7, 0, 1, **ls_kwargs)  # week
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+
+    if show_xlabel:
+        ax.set_xlabel(r"Inter-encounter inverval (days)")
+    if show_ylabel:
+        ax.set_ylabel(r"Probability density P(iei)")
+    if show_title:
+        ax.set_title("Distribution of iei", fontsize=8)
+    if show_legend:
+        ax.legend()
+    if show_legend_in_extra_panel:
+        _legend_into_new_axes(ax)
+
+    ax.set_ylim(1e-11, 1e-3)
+
+    _pretty_log_ticks(ax.xaxis, prec=2)
+
+    # show less ticks in main manuscript
+    _fix_log_ticks(
+        ax.yaxis, every=2, hide_label_condition=lambda idx: not (idx + 2) % 4 == 3
+    )
+    _fix_log_ticks(
+        ax.xaxis, every=1, hide_label_condition=lambda idx: not (idx + 2) % 1 == 0
+    )
+
+    fig.tight_layout()
+
+    # _set_size(ax, 2.5 * cm, 2.0 * cm)
+    _set_size(ax, 3.1 * cm, 2.0 * cm)
+    return ax
+
+
+# Fig 4
+@warntry
+def compare_disease_dist_encounters_generative(
+    ax=None,
+    which=["data"],
+    periods=["2_3"],
+    set_size=True,
+    annotate=True,
+):
+    """
+
+    here we hardcoded plot kwargs
+
+    similar to above, but instead of comparing to randomized, we compare to generative
+    process
+
+    # Parameters
+    process : "psn", "wbl" or "tlrd" corresponding to usual shorthands
+
+
+    """
+
+    control = None  # for the si, we have other datasets that e.g. exclude some trains
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+
+    def local_plot(data, color, zorder=0, **kwargs):
+        num_encounter = data[0, :]
+        p_full = data[1, :]
+        p_jack = data[2, :]
+        p_errs = data[3, :]
+        ax.plot(num_encounter, p_full, color=color, zorder=zorder, **kwargs)
+        ref = _ev(num_encounter, p_full)
+        return ref
+
+    # original data is stored in /disease
+    # poisson is stored in /sample/psn_inh.../disease
+
+    # iterate over all periods and chosen colors
+    # periods are saved as dset path
+    for period in periods:
+        if period == "2_3" or period == "1_0.5":
+            period_color = clrs["n_low"]  # blue
+        elif period == "6_3" or period == "1.5_0.5":
+            period_color = clrs["n_high"]  # red
+
+        dset = f"disease/delta_{period}"
+
+        if control is not None:
+            dset += f"/control_random_disease_{control}"
+        dset += "/distribution_infectious_encounter"
+
+        # iterate over models/data. different files
+        for wdx, w in enumerate(which):
+
+            try:
+                file = file_path_shorthand(w)
+
+                data = bnb.hi5.load(file, dset, raise_ex=True)
+
+                zorder = 0
+                if "surrogate_" in file:
+                    zorder = 2
+
+                kwargs = dict()
+                if w == "data":
+                    color = _alpha_to_solid_on_bg(period_color, 0.3)
+                    kwargs["label"] = f"data {period}"
+                else:
+                    color = _alpha_to_solid_on_bg(period_color, 1.0)
+                    kwargs["lw"] = 1.2
+                    kwargs["label"] = f"{w} {period}"
+
+                ref = local_plot(data, color, zorder, **kwargs)
+                log.info(f"{w}\t{period}:\t{ref:.2f}")
+            except Exception as e:
+                log.warning(f"Failed to plot {file} {dset}")
+                raise (e)
+
+    ax.set_xlim(-5, 150)
+    ax.set_yscale("log")
+    if "2_3" in periods or "6_3" in periods:
+        ax.set_ylim(1e-4, 1e-1)
+        # ax.set_ylim(1e-3, 1)
+    else:
+        ax.set_ylim(1e-6, 1)
+
+    _fix_log_ticks(ax.yaxis, every=1, hide_label_condition=lambda idx: idx % 2 == 1)
+    ax.xaxis.set_major_locator(MultipleLocator(50))
+    ax.xaxis.set_minor_locator(MultipleLocator(10))
+
+    if "wbl" in w:
+        title = f"Weibull renewal"
+    elif "psn" in w:
+        title = f"Inh. Poisson"
+    elif "tlrd" in w:
+        title = f"Tailored Weibull"
+    else:
+        title = "custom"
+
+    if control is not None:
+        title += f" {control}"
+
+    if annotate:
+        if show_xlabel:
+            ax.set_xlabel(r"Pot. inf. encounters")
+        if show_ylabel:
+            ax.set_ylabel(r"Distribution")
+        if show_title:
+            ax.set_title(title, fontsize=8)
+        if show_legend:
+            ax.legend()
+        if show_legend_in_extra_panel:
+            _legend_into_new_axes(ax)
+
+    if set_size:
+        fig.tight_layout()
+        _set_size(ax, 3.3 * cm, 1.7 * cm)
+
+    return ax
+
+
+# ------------------------------------------------------------------------------ #
+# SM Functions, might need updating for new file convention
+# ------------------------------------------------------------------------------ #
+
+
+# figure 3 in preprint v1
+def figure_sm_features_explained(h5f):
+    log.info("Figure feautres explained")
+    for which in [
+        "data",
+        "poisson_homogeneous",
+        "poisson_homogeneous_weighted_trains",
+        "poisson_inhomogeneous",
+        "poisson_inhomogeneous_weighted_trains",
+        "weibul_renewal_process",
+        "weibul_renewal_process_weighted_trains",
+    ]:
+        plot_disease_mean_number_of_infectious_encounter_2d(
+            h5f, which=which, how="relative", control_plot=True
+        )
+
+    which = ["data", "poisson_inhomogeneous", "poisson_inhomogeneous_weighted_trains"]
+    plot_conditional_encounter_rate(h5f, which=which, control_plot=True)
+
+    which = ["data", "weibul_renewal_process", "weibul_renewal_process_weighted_trains"]
+    plot_conditional_encounter_rate(h5f, which=which, control_plot=True)
+
+
+# figure 4 in preprint v1
+def figure_sm_dispersion(h5f):
+    log.info("Figure dispersion")
+    plot_disease_viral_load_examples()
+    plot_gamma_distribution()
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
+    plot_dispersion_scan_k(h5f, periods="slow")
+
+
+def figure_sm_external(h5f):
+    log.info("Figure SM external")
+    plot_controls_distributions_infectious_encounters(
+        h5f, which="gamma_6_3", k_sel="k_10.0", inset=False
+    )
+    plot_controls_distributions_infectious_encounters(
+        h5f, which="gamma_2_3", k_sel="k_10.0", inset=False
+    )
+    plot_controls_means_infectious_encounters(
+        h5f, which_list=["gamma_6_3", "gamma_2_3"], k_sel="k_10.0"
+    )
+
+
+def figure_sm_overview(h5f):
+    log.info("Figure SM overview")
+    plot_etrain_rate(h5f)
+    plot_dist_inter_encounter_interval(h5f)
+    plot_disease_mean_number_of_infectious_encounter_2d(
+        h5f, which="data", how="relative", control_plot=False
+    )
+    plot_conditional_encounter_rate(h5f, which=["data"], control_plot=True)
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="fast")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="fast")
+    plot_dispersion_scan_k(h5f, periods="slow")
+    plot_dispersion_scan_k(h5f, periods="fast")
+
+
+def figure_sm_dispersion(h5f):
+    log.info("Figure SM dispersion")
+    plot_disease_dist_infectious_encounters(h5f, k="k_1.0", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="slow")
+    plot_disease_dist_infectious_encounters(h5f, k="k_1.0", periods="fast")
+    plot_disease_dist_infectious_encounters(h5f, k="k_10.0", periods="fast")
+    plot_disease_dist_infectious_encounters(h5f, k="k_inf", periods="fast")
+    plot_dispersion_scan_k(h5f, periods="slow")
+    plot_dispersion_scan_k(h5f, periods="fast")
+
+
+def figure_sm_rssi_duration(how="absolute"):
+    """
+    Controls for different distance and contact duration
+    creates plots for 2d potentially inf. encounters and conditional encounter rate
+    using hardcoded paths
+    """
+
+    # define some helpers with defaul arguments
+    load = functools.partial(
+        bnb.hi5.recursive_load, dtype=bdict, keepdim=True, skip=["trains"]
+    )
+
+    plot_2d = functools.partial(
+        plot_disease_mean_number_of_infectious_encounter_2d,
+        which="data",
+        how=how,
+        control_plot=False,
+    )
+
+    h5ref = load(
+        file_path_shorthand("data"),
+    )
+
+    fig_kws = dict(dpi=300, transparent=True)
+
+    # Contact duration
+    fig, ax1d = plt.subplots(figsize=(8 * cm, 5 * cm))
+
+    kwargs = dict(label="15min (main)")
+    plot_conditional_encounter_rate(
+        h5ref, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5ref)
+    ax.set_title("15min (main)")
+    ax.get_figure().savefig(f"./figs/mins/2d_15min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_5min.h5")
+    kwargs = dict(label="5min", lw=0.5)
+    plot_conditional_encounter_rate(
+        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5f)
+    ax.set_title("5min")
+    ax.get_figure().savefig(f"./figs/mins/2d_5min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_10min.h5")
+    kwargs = dict(label="10min", lw=0.5)
+    plot_conditional_encounter_rate(
+        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5f)
+    ax.set_title("10min")
+    ax.get_figure().savefig(f"./figs/mins/2d_10min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_20min.h5")
+    kwargs = dict(label="20min", lw=0.5)
+    plot_conditional_encounter_rate(
+        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5f)
+    ax.set_title("20min")
+    ax.get_figure().savefig(f"./figs/mins/2d_20min_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_min_sweep/results_Copenhagen_filtered_30min.h5")
+    kwargs = dict(label="30min", lw=0.5)
+    plot_conditional_encounter_rate(
+        h5f, ax=ax1d, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+    ax = plot_2d(h5f)
+    ax.set_title("30min")
+    ax.get_figure().savefig(f"./figs/mins/2d_30min_{how}.pdf", **fig_kws)
+
+    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm)
+    fig.axes[0].set_ylim(0, 100)
+    fig.savefig(f"./figs/mins/cer.pdf", **fig_kws)
+
+    # RSSI conditional encounter rate
+    fig, ax = plt.subplots(figsize=(8 * cm, 5 * cm))
+
+    kwargs = dict(label="-80db (main)")
+    plot_conditional_encounter_rate(
+        h5ref, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+
+    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
+    kwargs = dict(label="-75db")
+    plot_conditional_encounter_rate(
+        h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+
+    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
+    kwargs = dict(label="-95db")
+    plot_conditional_encounter_rate(
+        h5f, ax=ax, which=["data"], control_plot=True, kwargs_overwrite=kwargs
+    )
+
+    _set_size(fig.axes[0], 5.0 * cm, 3.5 * cm)
+    fig.axes[0].set_ylim(0, 120)
+    fig.savefig(f"./figs/rssi/cer.pdf", **fig_kws)
+
+    # RSSI 2d plots
+    ax = plot_2d(h5ref)
+    ax.set_title("-80db (main)")
+    ax.get_figure().savefig(f"./figs/rssi/2d_80_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_rssi75/results_Copenhagen_filtered_15min.h5")
+    ax = plot_2d(h5f)
+    ax.set_title("-75db")
+    ax.get_figure().savefig(f"./figs/rssi/2d_75_{how}.pdf", **fig_kws)
+
+    h5f = load("./out_rssi95/results_Copenhagen_filtered_15min.h5")
+    ax = plot_2d(h5f)
+    ax.set_title("-95db")
+    ax.get_figure().savefig(f"./figs/rssi/2d_95_{how}.pdf", **fig_kws)
+
+
+def figure_sm_rate_and_iei_complete(h5f):
+    """
+    plots for encounter rate and inter-encounter-intervals (fig 1, bottom)
+    showing sampled process along the data
+    """
+    ax = plot_etrain_rate(h5f, sm_generative_processes=True)
+    _set_size(ax, 5.0 * cm, 3.5 * cm)
+    ax.get_figure().savefig(f"./figs/sm_ecr.pdf", **fig_kws)
+
+    ax = plot_dist_inter_encounter_interval(h5f, sm_generative_processes=True)
+    _set_size(ax, 5.0 * cm, 3.5 * cm)
+    ax.get_figure().savefig(f"./figs/sm_iei.pdf", **fig_kws)
+
+
+# ------------------------------------------------------------------------------ #
+# helpers, SM, legacy
+# ------------------------------------------------------------------------------ #
 
 
 def _offspring_dist(n_infs, p_n_infs, p, x_max=25):
@@ -2615,182 +3053,6 @@ def plot_offspring_moments(
     return ax
 
 
-def plot_dispersion_cutplane(
-    coords, x_dim=None, par="r", which="data", ax=None, **plot_kwargs
-):
-    """
-    Plot of the Maximumlikelihood fits of a Negative Binomial to Offspring distributions.
-
-    # Parameters
-    x_dim : str or None
-        which of the variables to plot on the x-axis, if None,
-        uses the one not specified in coords.
-    par : str
-        "r" or "p", which fit parameter to plot. The "r" parameter is what Lloyd-Smith
-        commonly denotes with "k" the dispersion parameter. Lower "k" -> more dispersion.
-    coords : dict with keys
-        "R0", "infectious", "latent"
-        mapping to selection in the ndim array
-    """
-    plot_kwargs = plot_kwargs.copy()
-
-    # dimensionality checks and prep
-    dims = ["R0", "infectious", "latent"]
-    if x_dim is None:
-        try:
-            # use the one thats not specified
-            x_dim = [d for d in dims if d not in coords.keys()][0]
-        except:
-            raise ValueError(
-                "`x_dim` must be specified if you specify all 3 keys in `coords`"
-            )
-
-    # get the data
-    ndim_data = _dispersion_data_prep(coords, par, which)
-
-    # we allow one dim to iterate over to get multiple, fading lines
-    dim_lens = [len(ndim_data[k]) for k in dims]
-    assert 1 in dim_lens, f"Need at least one dimension to be of length 1"
-    noniterdim = dims[dim_lens.index(1)]
-    # the iterdim might be of len 1, too, but thats okay.
-    iterdim = [d for d in dims if d not in [x_dim, noniterdim]][0]
-
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-
-    # put noniterdim value into legend below
-    nk_val = ndim_data[noniterdim].values[0]
-
-    # iterate over the remaining dim
-    for kdx, k_val in enumerate(ndim_data[iterdim].to_numpy()):
-        this_ndim_data = ndim_data.sel({iterdim: k_val})
-        # sanity check, only have one dimension remaining at this point
-        assert len([d for d in this_ndim_data.shape if d > 1]) <= 1
-
-        this_ndim_data = this_ndim_data.squeeze()
-
-        kwargs = plot_kwargs.copy()
-        kwargs.setdefault("label", f"{iterdim}={k_val}, {noniterdim}={nk_val}")
-        kwargs.setdefault(
-            "alpha", bnb.plt.fade(kdx, len(ndim_data[iterdim]), invert=True)
-        )
-
-        kwargs.setdefault("color", clrs.get(which, "black"))
-        kwargs.setdefault("s", ms_default * 1.5)
-        kwargs.setdefault("linewidth", 0.5)
-
-        if which == "data":
-            kwargs.setdefault("marker", "o")
-            kwargs.setdefault("zorder", 2)
-            kwargs.setdefault("edgecolor", kwargs["color"])
-            kwargs.setdefault("facecolor", kwargs["color"])
-            # if np.all(coords["latent"] == 6.0):
-            # kwargs.setdefault("facecolor", "w")
-
-        elif which == "data_rand":
-            kwargs.setdefault("marker", "o")
-            kwargs.setdefault("zorder", 6)
-        elif which == "data_rand_all":
-            kwargs.setdefault("marker", "^")
-            kwargs.setdefault("zorder", 4)
-
-        # we cant set clip_on to False, but still want to limit data range
-        # thus, remove some points from dataset
-        if x_dim == "infectious":
-            this_ndim_data = this_ndim_data.where(
-                (this_ndim_data["infectious"] <= 7) &
-                (this_ndim_data["infectious"] >= 1)
-                , drop=True
-            )
-        elif x_dim == "latent":
-            this_ndim_data = this_ndim_data.where(
-                (this_ndim_data["latent"] <= 7), drop=True
-            )
-
-
-
-        ax.scatter(
-            this_ndim_data[x_dim],
-            this_ndim_data,
-            clip_on=False,
-            **kwargs,
-        )
-
-        # highligh points of interest, crazy customization, but nvm
-        if which == "data":
-            for tlat in [2.0, 6.0]:
-                # this should leave only the one point we are interested in
-                temp = this_ndim_data
-                try:
-                    temp = temp.sel(latent=tlat)
-                except:
-                    pass
-                try:
-                    temp = temp.sel(infectious=3.0)
-                except:
-                    pass
-                try:
-                    temp = temp.sel(R0=3.0)
-                except:
-                    pass
-
-                # do not plot twice.
-                if tlat != temp["latent"].values:
-                    continue
-
-                kwargs["marker"] = "s"
-                # kwargs["s"] += 0.25
-                if tlat == 2.0:
-                    kwargs["edgecolor"] = clrs["n_low"]
-                    kwargs["facecolor"] = clrs["n_low"]
-                elif tlat == 6.0:
-                    kwargs["edgecolor"] = clrs["n_high"]
-                    kwargs["facecolor"] = clrs["n_high"]
-                ax.scatter(temp[x_dim], temp, clip_on=False, **kwargs)
-
-    # customization for our paper case where tlat is the x axis
-    if x_dim == "latent":
-        ax.set_xlim(0.0, 7.25)
-        ax.set_ylim(0.0, 1.125)
-        ax.xaxis.set_minor_locator(MultipleLocator(1))
-        ax.xaxis.set_ticks([1, 7])
-        ax.yaxis.set_minor_locator(MultipleLocator(0.25))
-    elif x_dim == "infectious":
-        ax.set_xlim(0.75, 7.25)
-        ax.set_ylim(0.0, 1.125)
-        ax.xaxis.set_minor_locator(MultipleLocator(1))
-        ax.xaxis.set_ticks([1, 7])
-        ax.yaxis.set_minor_locator(MultipleLocator(0.25))
-    elif x_dim == "R0":
-        # match y, we will hack this together in post
-        ax.set_ylim(0.0, 1.125)
-        ax.set_xlim(1, 5)
-        ax.xaxis.set_ticks([1, 5])
-        ax.yaxis.set_minor_locator(MultipleLocator(0.25))
-
-    xlabels = dict(
-        R0="Reproduction number $R_0$",
-        infectious="Infectious period",
-        latent="Latent period",
-    )
-    ylabels = dict(
-        r="Dispersion parameter $r$", p="Probability of success $p$", disp="Dispersion"
-    )
-
-    if show_xlabel:
-        ax.set_xlabel(xlabels.get(x_dim, x_dim))
-    if show_ylabel:
-        ax.set_ylabel(ylabels.get(par, par))
-    if show_title:
-        ax.set_title(f"{which}")
-    if show_legend:
-        ax.legend()
-
-    return ax
-
-
 def plot_dispersion_2d(
     x_dim, y_dim, off_dim_coord, par="r", which="data", ax=None, **plot_kwargs
 ):
@@ -2877,69 +3139,6 @@ def plot_dispersion_extinction_correlate_old(
 
     ax.set_xlabel("Dispersion $1/r$")
     ax.set_ylabel(f"Extinction probability\n(relative to {relative_to})")
-
-    fig.tight_layout()
-
-    return ax
-
-
-def plot_dispersion_extinction_correlate(
-    coords, which="data", relative_to=None, ax=None, **plot_kwargs
-):
-
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.get_figure()
-
-    # load the data for different r
-    dispersion = _dispersion_data_prep(coords, "disp", which)
-    extinction = _extinction_data_prep(coords, which)
-
-    # normalize?
-    if relative_to is not None:
-        ref_d = _dispersion_data_prep(coords, "disp", relative_to)
-        ref_e = _extinction_data_prep(coords, relative_to)
-        # lets have the very strong assumption that the shapes match
-        # dispersion = dispersion / ref_d
-        extinction = extinction / ref_e
-
-    # R0 values between disp and ext are not guaranteed to match, cos different pipelines
-    for key in ["R0", "infectious", "latent"]:
-        legit = np.intersect1d(dispersion[key].values, extinction[key].values)
-        dispersion = dispersion.sel({key: legit})
-        extinction = extinction.sel({key: legit})
-
-    # now we can plot
-    kwargs = plot_kwargs.copy()
-    kwargs.setdefault("label", f"{which}")
-    kwargs.setdefault("color", clrs.get(which, "black"))
-    kwargs.setdefault("s", ms_default * 1.5)
-    kwargs.setdefault("linewidth", 0.0)
-
-    x_max = 3
-    # we want to keep clip_on = False but still limit xrange
-    dispersion[np.where(dispersion > x_max)] = np.nan
-    ax.scatter(
-        dispersion,
-        extinction,
-        clip_on=False,
-        **kwargs,
-    )
-
-    ax.set_xlim(0, x_max)
-    ax.set_ylim(0, 1)
-
-    ax.yaxis.set_major_locator(MultipleLocator(0.5))
-    ax.yaxis.set_minor_locator(MultipleLocator(0.1))
-    # ax.set_xticks([1, 3, 5])
-    ax.xaxis.set_major_locator(MultipleLocator(1))
-    ax.xaxis.set_minor_locator(MultipleLocator(.5))
-
-    if show_xlabel:
-        ax.set_xlabel("Dispersion $\alpha$")
-    if show_ylabel:
-        ax.set_ylabel(f"Extinction probability")
 
     fig.tight_layout()
 
@@ -3095,128 +3294,221 @@ def _dispersion_data_prep(coords, par, which):
     return ndim_data
 
 
+# Fig S1
 @warntry
-def compare_disease_dist_encounters_generative(
-    ax=None,
-    which=["data"],
-    periods=["2_3"],
-    set_size=True,
-    annotate=True,
-):
-    """
+def plot_gamma_distribution(ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.get_figure()
+    ax.set_rasterization_zorder(0)
 
-    here we hardcoded plot kwargs
+    mean = 2
+    x = np.arange(0, mean * 4, 0.01)  # days, delta peak for k-> inf at `loc`
 
-    similar to above, but instead of comparing to randomized, we compare to generative
-    process
+    colors = dict()
+    for idx, k in enumerate([1, 10, 100, 1e8]):
+        colors[k] = pt.scientific.sequential.Tokyo_4_r.mpl_colors[idx]
+        colors[1] = "#E0E3B2"
 
-    # Parameters
-    process : "psn", "wbl" or "tlrd" corresponding to usual shorthands
+    k_vals = [1e8, 100, 10, 1]
+    for idx, k in enumerate(k_vals):
+        y = scipy.stats.gamma.pdf(x, a=k, loc=0, scale=mean / k)
+        k_str = f"$k={k}$" if k != 1e8 else r"$k\to\infty$"
+        ax.plot(x, y, color=colors[k], label=k_str)
+
+    ax.set_ylim(1e-2, 5)
+    ax.set_xlim(0, 11.49)
+    ax.set_yscale("log")
+    ax.set_xlabel("Period (days)")
+    ax.set_ylabel("Distribtuion")
+
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.xaxis.set_major_locator(MultipleLocator(2))
+
+    _legend_into_new_axes(ax)
+    _fix_log_ticks(ax.yaxis, every=1, hide_label_condition=lambda idx: False)
+
+    fig.tight_layout()
+    _set_size(ax, 3.3 * cm, 1.7 * cm)
+    return ax
 
 
-    """
+# Fig S1
+@warntry
+def plot_dispersion_scan_k(h5f, ax=None, periods="slow"):
 
-    control = None  # for the si, we have other datasets that e.g. exclude some trains
-
+    assert periods in ["fast", "slow"]
     if ax is None:
         fig, ax = plt.subplots()
     else:
         fig = ax.get_figure()
 
-    def local_plot(data, color, zorder=0, **kwargs):
-        num_encounter = data[0, :]
-        p_full = data[1, :]
-        p_jack = data[2, :]
-        p_errs = data[3, :]
-        ax.plot(num_encounter, p_full, color=color, zorder=zorder, **kwargs)
-        ref = _ev(num_encounter, p_full)
-        return ref
+    def local_plot(data, color, fmt, zorder=0, label=None, hline=None):
 
-    # original data is stored in /disease
-    # poisson is stored in /sample/psn_inh.../disease
+        kval = data[0, :]
+        full = data[1, :]
+        errs = data[3, :]
+
+        ax.errorbar(
+            x=kval,
+            y=full,
+            yerr=errs,
+            fmt=fmt,
+            markersize=ms_default,
+            markerfacecolor="white",
+            color=color,
+            ecolor=color,
+            alpha=1,
+            elinewidth=0.5,
+            capsize=1,
+            zorder=zorder,
+            label=label,
+        )
+
+        if hline is not None:
+            ax.axhline(
+                hline,
+                0,
+                1,
+                ls=":",
+                zorder=zorder - 5,
+                color=_alpha_to_solid_on_bg(color, alpha=0.5),
+            )
+
+    p_todo = []
+    if periods == "slow":
+        p_todo.append("2_3")  # blue
+        p_todo.append("6_3")  # red
+        p_todo.append("2_3_surrogate")
+        p_todo.append("6_3_surrogate")
+    elif periods == "fast":
+        p_todo.append("1_0.5")  # blue
+        p_todo.append("1.5_0.5")  # red
+        p_todo.append("1_0.5_surrogate")
+        p_todo.append("1.5_0.5_surrogate")
+
+    c_todo = []  # colors
+    c_todo.append(clrs["n_low"])
+    c_todo.append(clrs["n_high"])
+    c_todo.append(clrs["n_psn"])
+    c_todo.append(clrs["n_psn"])
+
+    m_todo = []  # markers
+    m_todo.append("s")
+    m_todo.append("o")
+    m_todo.append("s")
+    m_todo.append("o")
 
     # iterate over all periods and chosen colors
-    # periods are saved as dset path
-    for period in periods:
-        if period == "2_3" or period == "1_0.5":
-            period_color = clrs["n_low"]  # blue
-        elif period == "6_3" or period == "1.5_0.5":
-            period_color = clrs["n_high"]  # red
+    for period, color, fmt in zip(p_todo, c_todo, m_todo):
 
-        dset = f"disease/delta_{period}"
+        data = h5f[f"disease/gamma_{period}/scan_k"][:]
 
-        if control is not None:
-            dset += f"/control_random_disease_{control}"
-        dset += "/distribution_infectious_encounter"
+        # calculate the k->inf limit from delta disease
+        hline = h5f[f"disease/delta_{period}/mean_number_infectious_encounter"][0]
 
-        # iterate over models/data. different files
-        for wdx, w in enumerate(which):
+        log.info(f"{period}:\t{hline}")
 
-            try:
-                file = file_path_shorthand(w)
+        zorder = 0
+        if "surrogate" in period:
+            zorder = -5
 
-                data = bnb.hi5.load(file, dset, raise_ex=True)
+        local_plot(data, color, fmt, zorder=zorder, label=period, hline=hline)
 
-                zorder = 0
-                if "surrogate_" in file:
-                    zorder = 2
+    ax.set_xscale("log")
+    ax.set_xlim(0.1, 1.5e5)
+    # ax.legend()
+    _fix_log_ticks(ax.xaxis)
+    # ax.yaxis.set_minor_locator(MultipleLocator(1))
+    # ax.yaxis.set_major_locator(MultipleLocator(2))
+    ax.margins(x=0, y=0)
+    # ax.set_ylim(21, 31)
 
-                kwargs = dict()
-                if w == "data":
-                    color = _alpha_to_solid_on_bg(period_color, 0.3)
-                    kwargs["label"] = f"data {period}"
-                else:
-                    color = _alpha_to_solid_on_bg(period_color, 1.0)
-                    kwargs["lw"] = 1.2
-                    kwargs["label"] = f"{w} {period}"
+    if show_xlabel:
+        ax.set_xlabel("Dispersion $k$")
+    if show_ylabel:
+        ax.set_ylabel("Pot. inf. encounters")
+    if show_title:
+        ax.set_title(f"{periods}", fontsize=8)
+    if show_legend:
+        ax.legend()
+    if show_legend_in_extra_panel:
+        _legend_into_new_axes(ax)
 
-                ref = local_plot(data, color, zorder, **kwargs)
-                log.info(f"{w}\t{period}:\t{ref:.2f}")
-            except Exception as e:
-                log.warning(f"Failed to plot {file} {dset}")
-                raise (e)
-
-    ax.set_xlim(-5, 150)
-    ax.set_yscale("log")
-    if "2_3" in periods or "6_3" in periods:
-        ax.set_ylim(1e-4, 1e-1)
-        # ax.set_ylim(1e-3, 1)
-    else:
-        ax.set_ylim(1e-6, 1)
-
-    _fix_log_ticks(ax.yaxis, every=1, hide_label_condition=lambda idx: idx % 2 == 1)
-    ax.xaxis.set_major_locator(MultipleLocator(50))
-    ax.xaxis.set_minor_locator(MultipleLocator(10))
-
-    if "wbl" in w:
-        title = f"Weibull renewal"
-    elif "psn" in w:
-        title = f"Inh. Poisson"
-    elif "tlrd" in w:
-        title = f"Tailored Weibull"
-    else:
-        title = "custom"
-
-    if control is not None:
-        title += f" {control}"
-
-    if annotate:
-        if show_xlabel:
-            ax.set_xlabel(r"Pot. inf. encounters")
-        if show_ylabel:
-            ax.set_ylabel(r"Distribution")
-        if show_title:
-            ax.set_title(title, fontsize=8)
-        if show_legend:
-            ax.legend()
-        if show_legend_in_extra_panel:
-            _legend_into_new_axes(ax)
-
-    if set_size:
-        fig.tight_layout()
-        _set_size(ax, 3.3 * cm, 1.7 * cm)
+    fig.tight_layout()
+    _set_size(ax, 4.3 * cm, 3.3 * cm)
+    # _set_size(ax, 4.3 * cm, 2.0 * cm)
 
     return ax
+
+
+# Fig S1
+@warntry
+def plot_disease_viral_load_examples():
+    fig, axes = plt.subplots(
+        nrows=3,
+        sharex=True,
+        sharey=True,
+    )
+
+    t_max = 14  # days
+    hist_sample = 100000
+    exsample = 1000
+    exsample2 = 3
+
+    np.random.seed(817)
+
+    def disease_progression(k, mean_latent, mean_infectious, size=100):
+        t_start = scipy.stats.gamma.rvs(a=k, loc=0, scale=mean_latent / k, size=size)
+        t_end = t_start + scipy.stats.gamma.rvs(
+            a=k, loc=0, scale=mean_infectious / k, size=size
+        )
+
+        # naive histogram, hour resolution
+        hist = np.zeros(int(t_max * 24 * 60 + 1))
+
+        for tdx in range(0, len(t_start)):
+            t0 = int(t_start[tdx] * 24 * 60)
+            t1 = int(t_end[tdx] * 24 * 60)
+            if t1 >= len(hist):
+                t1 = int(len(hist) - 1)
+            hist[t0:t1] += 1
+
+        # return hist, t_start, t_end
+        return hist, t_start, t_end
+
+    for idx, k in enumerate([1e8, 10, 1]):
+        ax = axes[idx]
+        ax.set_rasterization_zorder(0)
+
+        hist, t_start, t_end = disease_progression(k, 2, 3, size=hist_sample)
+        x = np.arange(len(hist)) / 24 / 60
+
+        ax.plot(x, hist, zorder=5, ls="--", color=clr_dispersion[k])
+        ax.set_xlim(0, 11.49)
+
+        for tdx in range(0, exsample):
+            y = np.zeros(len(hist))
+            t0 = int(t_start[tdx] * 24 * 60)
+            t1 = int(t_end[tdx] * 24 * 60)
+            if t1 >= len(hist):
+                t1 = int(len(hist) - 1)
+            y[t0:t1] += hist_sample
+            if tdx < exsample2:
+                ax.plot(x, y, alpha=1, zorder=2, color="white", lw=1.5)
+                ax.plot(x, y, alpha=1, zorder=2, color=clr_dispersion[k], lw=0.5)
+            else:
+                ax.plot(x, y, alpha=0.02, zorder=-1, color=clr_dispersion[k], lw=0.5)
+
+    ax = axes[-1]
+    ax.set_xlabel("Time (in days)")
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
+    ax.xaxis.set_major_locator(MultipleLocator(2))
+    # for idx, lab in enumerate(ax.xaxis.get_ticklabels()):
+    #     if (idx) % 2 == 0:
+    #         lab.set_visible(False)
+    fig.tight_layout()
 
 
 # SM
@@ -3433,248 +3725,7 @@ def plot_controls_means_infectious_encounters(
     return ax
 
 
-# Fig 5
-# needs different h5f, not part of main file yet. usually in 'out_mf'
-@warntry
-def plot_case_numbers(
-    h5f=None,
-    which_latent=["latent_1.00", "latent_2.00", "latent_6.00"],
-    average_over_rep=True,
-    apply_formatting=True,
-):
-    fig, ax = plt.subplots()
-
-    if h5f is None:
-        h5f = bnb.hi5.recursive_load(
-            "./out/sample_continuous_branching_Copenhagen_filtered_15min.h5",
-            dtype=bdict,
-            keepdim=True,
-        )
-
-    def plot_cases(cases, color, **kwargs):
-        num_rep = len(cases.keys())
-        k0 = list(cases.keys())[0]
-        x = cases[k0][0, :] / 60 / 60 / 24 / 7
-        y_all = np.zeros((len(x), num_rep))
-        for idx, key in enumerate(cases.keys()):
-            y_all[:, idx] = cases[key][1, :]
-        y_all[y_all == 0] = np.nan
-
-        if not average_over_rep:
-            selected_rep = 3
-            y_mean = y_all[:, selected_rep]
-            y_err = np.ones(len(y_mean)) * np.nan
-        else:
-            y_mean = np.nanmean(y_all, axis=-1)
-            y_err = np.nanstd(y_all, axis=-1) / np.sqrt(num_rep)
-
-        ax.plot(x, y_mean, color=color, **kwargs)
-
-    for wdx, w in enumerate(which_latent):
-        log.info(w)
-        real = h5f["measurements"]["cases"][w]
-        surr = h5f["measurements_randomized_per_train"]["cases"][w]
-        base_color = f"C{wdx}"
-        if "1.00" in w:
-            base_color = "#868686"
-        elif "2.00" in w:
-            base_color = clrs["n_low"]
-        elif "6.00" in w:
-            base_color = clrs["n_high"]
-        plot_cases(surr, color=_alpha_to_solid_on_bg(base_color, 0.3), label=f"surr {w}")
-        plot_cases(real, color=base_color, label=f"real {w}")
-
-    if apply_formatting:
-        # ax.axhline(1e4, 0, 1, color="gray", ls="--")
-        # ax.set_ylim(1, 1.1e6)
-        # ax.set_xlim(0, 14.75)
-        ax.xaxis.set_major_locator(MultipleLocator(4))
-        ax.xaxis.set_minor_locator(MultipleLocator(1))
-        # for label in ax.xaxis.get_ticklabels()[::2]:
-        #     label.set_visible(False)
-        ax.set_yscale("log")
-        _fix_log_ticks(ax.yaxis, hide_label_condition=lambda idx: idx % 2 == 1)
-
-    if show_ylabel:
-        ax.set_ylabel("Daily new cases")
-    if show_xlabel:
-        ax.set_xlabel("Time (weeks)")
-    if show_legend:
-        ax.legend(loc="lower left")
-    if show_legend_in_extra_panel:
-        _legend_into_new_axes(ax)
-
-    if apply_formatting:
-        fig.tight_layout()
-        _set_size(ax, 3.0 * cm, 2.3 * cm)
-
-    return ax
-
-
-# essentially, this is a carbon copy of `plot_r4`
-def plot_growth_rate():
-    fig, ax = plt.subplots()
-
-    rand = np.loadtxt(
-        "./out/analysis_continuous_branching_measurements_randomized_per_train.dat",
-        unpack=True,
-    )
-    data = np.loadtxt(
-        "./out/analysis_continuous_branching_measurements.dat",
-        unpack=True,
-    )
-    # time_x = rand[0, :]
-    time_x = data[0, :]
-    data_y = data[1, :]
-    rand_y = rand[1, :]
-
-    # convert to 1/days
-    rand_y[:] *= 60 * 60 * 24
-    data_y[:] *= 60 * 60 * 24
-
-    # Analytic solution
-    # Johannes derived a closed formula for R(lambda, t_lat) but its not
-    # possible to solve for lambda(R, t_lat) so we do it numerically.
-    from scipy.optimize import minimize
-
-    t_ift = 3
-
-    def func(lam):
-        return lam * t_ift * np.exp(lam * t_lat) / (1.0 - np.exp(-lam * t_ift))
-
-    def delta(lam, R):
-        yt = func(lam)
-        return (yt - R) ** 2
-
-    # We have an estimate of R from our measured eift * pift: 25 * 0.12 ~= 3
-    # as we do in `plot_disease_mean_number_of_infectious_encounter_cutplane`
-    target_R = 2.9483780
-    first_guess = 0.5
-    lam_res = np.ones(len(time_x)) * np.nan
-    for idx, t_lat in enumerate(time_x):
-        res = minimize(
-            delta, first_guess, args=(target_R), method="Nelder-Mead", tol=1e-6
-        )
-        lam_res[idx] = res.x[0]
-
-    ax.plot(time_x, lam_res, lw=1, label="_analytic_solution", color=clrs["data_rand"])
-
-    ax.errorbar(
-        time_x[:],
-        rand_y[:],
-        yerr=rand[2, :],
-        label="rand",
-        color=clrs["data_rand"],
-        fmt="o",
-        markersize=ms_default,
-        alpha=1,
-        elinewidth=0.5,
-        capsize=1,
-        clip_on=False,
-    )
-    ax.errorbar(
-        time_x[:],
-        data_y[:],
-        yerr=data[2, :],
-        label="data",
-        color=clrs["data"],
-        fmt="o",
-        markersize=ms_default,
-        alpha=1,
-        elinewidth=0.5,
-        capsize=1,
-        clip_on=False,
-    )
-
-    # shaded regions
-    # for the crossings of colors that do not fall on sampled data points, we interpolate
-    # and manually ad the points
-    ins_x = 0.82
-    ins_y = 0.5124
-    idx = np.argwhere(time_x[:] > ins_x)[0][0]
-    time_x = np.insert(time_x, idx, ins_x)
-    data_y = np.insert(data_y, idx, ins_y)
-    rand_y = np.insert(rand_y, idx, ins_y)
-
-    idx = np.where((time_x[:] >= 0) & (time_x[:] <= ins_x))[0]
-    ax.fill_between(
-        time_x[idx],
-        y1=rand_y[idx],
-        y2=data_y[idx],
-        color="#faad7c",
-        alpha=0.4,
-        lw=0,
-        zorder=1,
-    )
-    idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 4))[0]
-    ax.fill_between(
-        time_x[idx],
-        y1=rand_y[idx],
-        y2=data_y[idx],
-        color="#49737a",
-        alpha=0.4,
-        lw=0,
-        zorder=1,
-    )
-
-    # insert another point
-    ins_x = 7.32
-    ins_y = 0.123
-    idx = np.argwhere(time_x[:] > ins_x)[0][0]
-    time_x = np.insert(time_x, idx, ins_x)
-    data_y = np.insert(data_y, idx, ins_y)
-    rand_y = np.insert(rand_y, idx, ins_y)
-
-    idx = np.where((time_x[:] >= 4) & (time_x[:] <= ins_x))[0]
-    ax.fill_between(
-        time_x[idx],
-        y1=rand_y[idx],
-        y2=data_y[idx],
-        color="#faad7c",
-        alpha=0.4,
-        lw=0,
-        zorder=1,
-    )
-
-    idx = np.where((time_x[:] >= ins_x) & (time_x[:] <= 8))[0]
-    ax.fill_between(
-        time_x[idx],
-        y1=rand_y[idx],
-        y2=data_y[idx],
-        color="#49737a",
-        alpha=0.4,
-        lw=0,
-        zorder=1,
-    )
-
-    # ax.legend()
-    ax.set_yscale("log")
-    ax.set_ylim(1e-1, 2.0e-0)
-    _fix_log_ticks(ax.yaxis, every=1)
-    ax.set_xlim(0, 8)
-    ax.xaxis.set_major_locator(MultipleLocator(2))
-    ax.xaxis.set_minor_locator(MultipleLocator(1))
-    # ax.yaxis.set_major_locator(MultipleLocator(2))
-    # ax.yaxis.set_minor_locator(MultipleLocator(1))
-
-    sns.despine(ax=ax, right=True, top=True, trim=False, offset=3)
-
-    if show_ylabel:
-        ax.set_ylabel(r"Spreading rate $\lambda$\\n(1 / day)")
-    if show_xlabel:
-        ax.set_xlabel("Latent period (days)")
-    if show_legend:
-        ax.legend(loc="lower left")
-    if show_legend_in_extra_panel:
-        _legend_into_new_axes(ax)
-
-    fig.tight_layout()
-    _set_size(ax, 5.0 * cm, 2.8 * cm)
-
-    return ax
-
-
-# Fig 5
+# old
 @warntry
 def plot_r4():
     fig, ax = plt.subplots()
@@ -3759,7 +3810,7 @@ def plot_r4():
     return ax
 
 
-# Fig 5
+# old
 @warntry
 def plot_r0(h5f):
 
@@ -3872,6 +3923,15 @@ def plot_r0(h5f):
 
 def save_ax(ax, fname, ensure_dpi_hack=True):
 
+    if ax is None:
+        # this might happen if a panel plot did not succeed
+        log.warning("no axis to save")
+        return
+
+    # create folder
+    os.makedirs(os.path.dirname(fname), exist_ok=True)
+    log.info(f"saving {os.path.abspath(fname)}")
+
     if ensure_dpi_hack:
         # make sure the right dpi gets embedded so graphics programs will recognice it.
         # seems like this needs a tiny patch that is rasterized
@@ -3975,7 +4035,7 @@ def _pretty_log_ticks(ax_el, prec=2):
     """
     Example
     ```
-        ax.yaxis.set_major_formatter(ticker.FuncFormatter(_pretty_log_formatter()))
+        ax.yaxis.set_major_formatter(ticker.FuncFormatter(_pretty_log_ticks()))
     ```
 
     """
@@ -4013,11 +4073,14 @@ def _detick(axis, keep_labels=False, keep_ticks=False):
     if not isinstance(axis, list):
         axis = [axis]
     for a in axis:
-        if not keep_labels and not keep_ticks:
-            a.set_ticks_position("none")
-            a.set_ticks([])
-        elif not keep_labels and keep_ticks:
-            a.set_ticklabels([])
+        try:
+            if not keep_labels and not keep_ticks:
+                a.set_ticks_position("none")
+                a.set_ticks([])
+            elif not keep_labels and keep_ticks:
+                a.set_ticklabels([])
+        except Exception as e:
+            log.error(e)
 
 
 # def _set_size(ax, w, h):
@@ -4038,6 +4101,9 @@ def _set_size(ax, w, h):
     """w, h: width, height in inches"""
     # https://newbedev.com/axes-class-set-explicitly-size-width-height-of-axes-in-given-units
     from mpl_toolkits.axes_grid1 import Divider, Size
+
+    if ax is None:
+        return
 
     axew = w
     axeh = h

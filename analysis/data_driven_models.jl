@@ -808,7 +808,7 @@ function sample_continuous_time_branching(;
         myh5desc(filename, @sprintf("/%s/cond_encounter_rate", dsetname),
             "average encounter rate conditioned on having an encounter at time 0, averaged across all encounter in experiment, d1: times, d2: rate(full)")
 
-        probability_infection = 0.12 # heuristically chosen to match R approx 3.3 for infectious=3 and latent=4 when g=4
+        probability_infection = 0.12 # heuristically chosen to match R approx 3.3 (covid) for infectious=3 and latent=4 when g=4
         infectious = 3 # days
         range_latent = 0.0:0.5:8
         #range_latent = 0.0:0.0
