@@ -1,5 +1,5 @@
-# resonance_contact_disease
-Code acompanying our paper "Resonance between contact patterns and disease progression shapes epidemic spread"
+# contact_pattern_outbreak
+Code acompanying our paper "How contact patterns destabilize and modulate epidemic outbreaks"
 
 # Data source:
 Copenhagen:
