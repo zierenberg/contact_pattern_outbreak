@@ -1,12 +1,27 @@
-# contact_pattern_outbreak
-Code acompanying our paper "How contact patterns destabilize and modulate epidemic outbreaks"
+# _Code repository:_ How contact patterns destabilize and modulate epidemic outbreaks
 
-# Data source:
-Copenhagen:
-https://figshare.com/articles/dataset/The_Copenhagen_Networks_Study_interaction_data/7267433/1?file=14000795
+# Article
+- [arXiv.2109.12180](https://arxiv.org/abs/2109.12180)
+- [NJP]()
 
-Sociopatterns:
-http://www.sociopatterns.org/datasets/co-location-data-for-several-sociopatterns-data-sets/
+```
+@misc{zierenberg_contact_patterns_2023,
+	title = {How contact patterns destabilize and modulate epidemic outbreaks},
+	url = {http://arxiv.org/abs/2109.12180},
+	doi = {10.48550/arXiv.2109.12180},
+	number = {{arXiv}:2109.12180},
+	publisher = {{arXiv}},
+	author = {Zierenberg, Johannes and Spitzner, F. Paul and Dehning, Jonas and Priesemann, Viola and Weigel, Martin and Wilczek, Michael},
+	date = {2023-05-03},
+	eprinttype = {arxiv},
+	eprint = {2109.12180},
+}
+```
+
+# Data sources:
+
+- [Copenhagen Networks Study](https://figshare.com/articles/dataset/The_Copenhagen_Networks_Study_interaction_data/7267433/1?file=14000795)
+- [Sociopatterns](http://www.sociopatterns.org/datasets/co-location-data-for-several-sociopatterns-data-sets/)
 
 # Prepare
 Go to your directory
@@ -27,9 +42,6 @@ Create folders for output
 ```bash
 mkdir ./out/
 ```
-
-
-
 
 
 # Running the analysis
@@ -64,6 +76,7 @@ analyse_all(Copenhagen(), path_out = "./out/", level_of_details=3,
 # Repeat analysis for another dataset (e.g. InVS15)
 analyse_all(InVS15(), path_out = "./out/", level_of_details=3)
 ```
+
 
 # Plotting
 
