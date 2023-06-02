@@ -2,7 +2,7 @@
 
 # Article
 - [arXiv.2109.12180](https://arxiv.org/abs/2109.12180)
-- [NJP]()
+- [NJP](https://iopscience.iop.org/article/10.1088/1367-2630/acd1a7/meta)
 
 ```
 @misc{zierenberg_contact_patterns_2023,
