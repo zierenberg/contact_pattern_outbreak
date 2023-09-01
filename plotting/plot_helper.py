@@ -2,7 +2,7 @@
 # @Author:        F. Paul Spitzner
 # @Email:         paul.spitzner@ds.mpg.de
 # @Created:       2021-02-09 18:58:52
-# @Last Modified: 2023-04-15 19:55:22
+# @Last Modified: 2023-09-01 11:42:41
 # ------------------------------------------------------------------------------ #
 # plotting for all figures of the manuscript.
 # requires julia to run the analysis beforehand.
@@ -286,15 +286,23 @@ def figure_1():
     ax = plot_dist_encounters_per_train(
         which=["data", "data_rand"], plot_kwargs={"data_rand": kwargs}
     )
-
-    _set_size(ax, 4.0 * cm, 2.5 * cm)
+    # _set_size(ax, 4.0 * cm, 2.5 * cm)
+    _set_size(ax, 2.6 * cm, 1.7 * cm)
     save_ax(ax, f"{figure_path}/f1_dist_per_train.pdf")
 
     ax = plot_dist_encounters_per_day(
         which=["data", "data_rand"], plot_kwargs={"data_rand": kwargs}
     )
-    _set_size(ax, 4.0 * cm, 2.5 * cm)
+    # _set_size(ax, 4.0 * cm, 2.5 * cm)
+    _set_size(ax, 2.6 * cm, 1.7 * cm)
     save_ax(ax, f"{figure_path}/f1_dist_per_day.pdf")
+
+    ax = plot_dist_inter_encounter_interval(
+        which=["data", "data_rand"], plot_kwargs={"data_rand": kwargs}
+    )
+    # _set_size(ax, 4.0 * cm, 2.5 * cm)
+    _set_size(ax, 2.6 * cm, 1.7 * cm)
+    save_ax(ax, f"{figure_path}/f1_dist_iei.pdf")
 
 
 def figure_2():
@@ -372,7 +380,7 @@ def figure_2():
             s=ms_default * 2,
             marker="o",
             alpha=0.2,
-            zorder=0,
+            zorder=-3,
         )
         ax = plot_dispersion_extinction_correlate(
             coords=dict(R0=rval),
@@ -383,7 +391,7 @@ def figure_2():
             s=ms_default * 2,
             marker="o",
             alpha=0.2,
-            zorder=1,
+            zorder=-2,
         )
         ax = plot_dispersion_extinction_correlate(
             coords=dict(R0=rval),
@@ -393,7 +401,7 @@ def figure_2():
             s=ms_default * 2,
             marker="^",
             alpha=0.2,
-            zorder=1,
+            zorder=-2,
         )
 
     # move y axis to the right of the plot via tickparams, so we can add
@@ -401,7 +409,11 @@ def figure_2():
     ax.tick_params(axis="y", labelright=True, labelleft=False)
     bnb.plt.set_size(ax, w=2.1, h=1.6, l=0.1, b=0.6, t=0.2, r=1.0)
     sns.despine(ax=ax, trim=False, left=True, right=False, offset=3)
-    save_ax(ax, f"{figure_path}/f2_correlate_extinction_vs_dispersion.pdf")
+    save_ax(
+        ax,
+        f"{figure_path}/f2_correlate_extinction_vs_dispersion.pdf",
+        ensure_dpi_hack=False,
+    )
 
     # ------------------------------------------------------------------------------ #
     # cutplanes, dispersion for different R, infectious, latent
@@ -1558,13 +1570,13 @@ def plot_extinction_probability(
     # TODO make consistent
     if h5f is None and (which == "analytic"):
         h5f = bnb.hi5.recursive_load(
-            "./out/analytic_survival_Copenhagen_filtered_15min.h5",
+            f"{data_input_path}/analytic_survival_Copenhagen_filtered_15min.h5",
             dtype=bdict,
             keepdim=True,
         )
     elif h5f is None and which == "branching_process":
         h5f = bnb.hi5.recursive_load(
-            "./out/branching_process_Copenhagen_filtered_15min.h5",
+            f"{data_input_path}/branching_process_Copenhagen_filtered_15min.h5",
             dtype=bdict,
             keepdim=True,
         )
@@ -1677,6 +1689,8 @@ def plot_dispersion_extinction_correlate(
         fig, ax = plt.subplots()
     else:
         fig = ax.get_figure()
+
+    ax.set_rasterization_zorder(-1)
 
     # load the data for different r
     dispersion = _dispersion_data_prep(coords, "disp", which)
@@ -2083,7 +2097,7 @@ def plot_case_numbers(
 
     if h5f is None:
         h5f = bnb.hi5.recursive_load(
-            "./out/sample_continuous_branching_Copenhagen_filtered_15min.h5",
+            f"{data_input_path}/sample_continuous_branching_Copenhagen_filtered_15min.h5",
             dtype=bdict,
             keepdim=True,
         )
@@ -2158,11 +2172,11 @@ def plot_growth_rate(
     fig, ax = plt.subplots()
 
     rand = np.loadtxt(
-        "./out/analysis_continuous_branching_measurements_randomized_per_train.dat",
+        f"{data_input_path}/analysis_continuous_branching_measurements_randomized_per_train.dat",
         unpack=True,
     )
     data = np.loadtxt(
-        "./out/analysis_continuous_branching_measurements.dat",
+        f"{data_input_path}/analysis_continuous_branching_measurements.dat",
         unpack=True,
     )
     # time_x = rand[0, :]
@@ -2520,10 +2534,10 @@ def plot_dist_inter_encounter_interval(
         ax.xaxis, every=1, hide_label_condition=lambda idx: not (idx + 2) % 1 == 0
     )
 
-    fig.tight_layout()
+    # fig.tight_layout()
 
     # _set_size(ax, 2.5 * cm, 2.0 * cm)
-    _set_size(ax, 3.1 * cm, 2.0 * cm)
+    # _set_size(ax, 3.1 * cm, 2.0 * cm)
     return ax
 
 
@@ -3194,7 +3208,7 @@ def _extinction_data_prep_old_format(which, latent, infectious):
     2_1, 6_1, 2_3, 6_3
     """
     h5f = bnb.hi5.recursive_load(
-        "./out/analytic_survival_Copenhagen_filtered_15min.h5",
+        f"{data_input_path}/analytic_survival_Copenhagen_filtered_15min.h5",
         dtype=bdict,
         keepdim=True,
     )
@@ -3941,7 +3955,7 @@ def save_ax(ax, fname, ensure_dpi_hack=True):
         y = ax.get_ylim()
         ax.plot(x, y, lw=0.001, color="white", zorder=-51)
 
-    ax.get_figure().savefig(fname, dpi=300, transparent=True)
+    ax.get_figure().savefig(fname, dpi=900, transparent=True)
 
     if figures_only_to_disk:
         plt.close(ax.get_figure())
